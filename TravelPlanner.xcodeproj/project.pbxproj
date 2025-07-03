@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2649790E2E166E4E002A4B7B /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 2649790D2E166E45002A4B7B /* .gitignore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		2649786E2E13B439002A4B7B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		264978602E13B439002A4B7B /* TravelPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TravelPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2649786D2E13B439002A4B7B /* TravelPlannerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TravelPlannerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		264978772E13B439002A4B7B /* TravelPlannerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TravelPlannerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2649790D2E166E45002A4B7B /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +80,7 @@
 		264978572E13B439002A4B7B = {
 			isa = PBXGroup;
 			children = (
+				2649790D2E166E45002A4B7B /* .gitignore */,
 				264978622E13B439002A4B7B /* TravelPlanner */,
 				264978702E13B439002A4B7B /* TravelPlannerTests */,
 				2649787A2E13B439002A4B7B /* TravelPlannerUITests */,
@@ -212,6 +218,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2649790E2E166E4E002A4B7B /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
