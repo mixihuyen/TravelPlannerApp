@@ -7,4 +7,6 @@ struct TripModel: Identifiable {
     let endDate: String
     let image: Data?
     let activities: [TripActivity]
+    var members: [TripMember] = []
+    var packingList: [PackingItem]
 }

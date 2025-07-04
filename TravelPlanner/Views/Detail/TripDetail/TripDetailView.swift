@@ -72,7 +72,7 @@ struct TripDetailView: View {
                                 
                                 VStack(spacing: 20) {
                                     ForEach(viewModel.tripDays, id: \.self) { date in
-                                        NavigationLink(destination: ActivityView(date: date)) {
+                                        NavigationLink(destination: ActivityView(date: date, activities: viewModel.activities(for: date))) {
                                             TripDayWidgetView(
                                                 title: viewModel.formattedDate(date),
                                                 activities: viewModel.activities(for: date)
