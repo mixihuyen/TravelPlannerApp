@@ -30,7 +30,7 @@ struct TabBar: View {
                         Label("Lịch trình", systemImage: "calendar")
                     }
                 
-                MembersView(trip: trip)
+                MembersView(trip: trip, members: trip.members)
                     .tabItem {
                         Label("Thành viên", systemImage: "person.2.fill")
                     }

@@ -11,6 +11,11 @@ struct TripDayWidgetView: View {
                     Circle()
                         .fill(Color.WidgetBackground1)
                         .frame(width: 60, height: 60)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.line, lineWidth: 1)
+                        )
+
                     Text(title)
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.white)
@@ -57,61 +62,9 @@ struct TripDayWidgetView: View {
                     RoundedRectangle(cornerRadius: 15)
                         .fill(Color.WidgetBackground2)
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 15)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
             }
             
         }
         
     }
-}
-
-
-#Preview {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "dd/MM/yyyy HH:mm"
-    
-    let sampleActivities = [
-        TripActivity(
-            date: formatter.date(from: "30/06/2025 00:00")!,
-            startTime: formatter.date(from: "30/06/2025 06:00")!,
-            endTime: formatter.date(from: "30/06/2025 08:00")!,
-            name: "Đi oto từ HN vào Huế"
-        ),
-        TripActivity(
-            date: formatter.date(from: "30/06/2025 00:00")!,
-            startTime: formatter.date(from: "30/06/2025 09:00")!,
-            endTime: formatter.date(from: "30/06/2025 10:00")!,
-            name: "Gội đầu dưỡng sinh"
-        ),
-        TripActivity(
-            date: formatter.date(from: "30/06/2025 00:00")!,
-            startTime: formatter.date(from: "30/06/2025 06:00")!,
-            endTime: formatter.date(from: "30/06/2025 08:00")!,
-            name: "Đi oto từ HN vào Huế"
-        ),
-        TripActivity(
-            date: formatter.date(from: "30/06/2025 00:00")!,
-            startTime: formatter.date(from: "30/06/2025 09:00")!,
-            endTime: formatter.date(from: "30/06/2025 10:00")!,
-            name: "Gội đầu dưỡng sinh"
-        ),
-        TripActivity(
-            date: formatter.date(from: "30/06/2025 00:00")!,
-            startTime: formatter.date(from: "30/06/2025 06:00")!,
-            endTime: formatter.date(from: "30/06/2025 08:00")!,
-            name: "Đi oto từ HN vào Huế"
-        ),
-        TripActivity(
-            date: formatter.date(from: "30/06/2025 00:00")!,
-            startTime: formatter.date(from: "30/06/2025 09:00")!,
-            endTime: formatter.date(from: "30/06/2025 10:00")!,
-            name: "Gội đầu dưỡng sinh"
-        ),
-        
-    ]
-    
-    return TripDayWidgetView(title: "1\nTh 2", activities: sampleActivities)
 }
