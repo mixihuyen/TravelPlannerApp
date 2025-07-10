@@ -17,7 +17,7 @@ struct MemberRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 if let role = member.role {
-                    Text(role)
+                    Text(role.rawValue)
                         .font(.system(size: 11, weight: .light))
                         .foregroundColor(.white)
                 }

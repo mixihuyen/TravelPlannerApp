@@ -1,9 +1,15 @@
 import Foundation
 
-struct PackingItem: Identifiable {
-    let id = UUID()
+struct PackingItem: Identifiable, Codable {
+    let id: String
     var name: String
-    var isShared: Bool // true = đồ dùng chung, false = cá nhân
-    var isPacked: Bool // đã đánh dấu là đã chuẩn bị xong chưa
-    var ownerId: UUID? // nếu là đồ cá nhân, gán member.id
+    var isChecked: Bool
+    var assignedTo: String?
+
+    init(id: String = UUID().uuidString, name: String, isChecked: Bool, assignedTo: String? = nil) {
+        self.id = id
+        self.name = name
+        self.isChecked = isChecked
+        self.assignedTo = assignedTo
+    }
 }

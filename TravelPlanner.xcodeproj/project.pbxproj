@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		2649790E2E166E4E002A4B7B /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 2649790D2E166E45002A4B7B /* .gitignore */; };
+		2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */ = {isa = PBXBuildFile; productRef = 2649793E2E193554002A4B7B /* SwiftUICharts */; };
+		264979452E193940002A4B7B /* DGCharts in Frameworks */ = {isa = PBXBuildFile; productRef = 264979442E193940002A4B7B /* DGCharts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +59,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				264979452E193940002A4B7B /* DGCharts in Frameworks */,
+				2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +122,8 @@
 			);
 			name = TravelPlanner;
 			packageProductDependencies = (
+				2649793E2E193554002A4B7B /* SwiftUICharts */,
+				264979442E193940002A4B7B /* DGCharts */,
 			);
 			productName = TravelPlanner;
 			productReference = 264978602E13B439002A4B7B /* TravelPlanner.app */;
@@ -201,6 +207,10 @@
 			);
 			mainGroup = 264978572E13B439002A4B7B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2649793D2E193554002A4B7B /* XCRemoteSwiftPackageReference "ChartView" */,
+				264979432E193940002A4B7B /* XCRemoteSwiftPackageReference "Charts" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 264978612E13B439002A4B7B /* Products */;
 			projectDirPath = "";
@@ -559,6 +569,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2649793D2E193554002A4B7B /* XCRemoteSwiftPackageReference "ChartView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AppPear/ChartView";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.5;
+			};
+		};
+		264979432E193940002A4B7B /* XCRemoteSwiftPackageReference "Charts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/danielgindi/Charts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2649793E2E193554002A4B7B /* SwiftUICharts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2649793D2E193554002A4B7B /* XCRemoteSwiftPackageReference "ChartView" */;
+			productName = SwiftUICharts;
+		};
+		264979442E193940002A4B7B /* DGCharts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 264979432E193940002A4B7B /* XCRemoteSwiftPackageReference "Charts" */;
+			productName = DGCharts;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 264978582E13B439002A4B7B /* Project object */;
 }

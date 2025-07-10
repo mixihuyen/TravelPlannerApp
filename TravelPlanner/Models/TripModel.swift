@@ -8,5 +8,5 @@ struct TripModel: Identifiable {
     let image: Data?
     let activities: [TripActivity]
     var members: [TripMember] = []
-    var packingList: [PackingItem]
+    var packingList: PackingList
 }
