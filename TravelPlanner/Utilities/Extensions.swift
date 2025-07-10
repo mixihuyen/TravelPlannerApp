@@ -22,6 +22,17 @@ extension Color {
         startPoint: .bottom,
         endPoint: .top
     )
+    static let Button = LinearGradient(
+        gradient: Gradient(colors: [Color("Card 1"), Color("Pink")]),
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+    static let Button2 = LinearGradient(
+        gradient: Gradient(colors: [Color("Gray"), Color("Drak gray")]),
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+    
     static let WidgetBackground1 = LinearGradient(
         gradient: Gradient(colors: [Color("Card 1"), Color("Card 2")]),
         startPoint: .leading,

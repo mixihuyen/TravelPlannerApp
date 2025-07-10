@@ -1,7 +1,6 @@
-//
-//  Untitled.swift
-//  TravelPlanner
-//
-//  Created by Mixi Huyen on 4/7/25.
-//
+import Foundation
 
+struct PackingList: Codable {
+    var sharedItems: [PackingItem] = []
+    var personalItems: [PackingItem] = []
+}

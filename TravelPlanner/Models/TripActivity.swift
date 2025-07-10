@@ -7,8 +7,8 @@ struct TripActivity: Identifiable, Equatable {
     let endTime: Date
     let name: String
     let address: String?
-    let estimatedCost: Double?
-    let actualCost: Double?
+    var estimatedCost: Double? = 0
+    var actualCost: Double? = 0
     let note: String?
     
     // MARK: - Tiện ích hiển thị giờ dạng "HH:mm - HH:mm"

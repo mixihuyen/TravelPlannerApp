@@ -3,9 +3,11 @@ import SwiftUI
 struct TabBar: View {
     var trip: TripModel
     @Environment(\.dismiss) var dismiss
+    @State var packingList: PackingList
     
     init(trip: TripModel) {
         self.trip = trip
+        self._packingList = State(initialValue: trip.packingList)
         
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
@@ -35,10 +37,15 @@ struct TabBar: View {
                         Label("Thành viên", systemImage: "person.2.fill")
                     }
                 
-                PackingListView(trip: trip)
-                    .tabItem {
-                        Label("Mang theo", systemImage: "duffle.bag.fill")
-                    }
+                PackingListView(
+                    viewModel: PackingListViewModel(
+                        packingList: trip.packingList,
+                        members: trip.members
+                    )
+                )
+                .tabItem {
+                    Label("Mang theo", systemImage: "duffle.bag.fill")
+                }
                 
                 StatisticalView(trip: trip)
                     .tabItem {
