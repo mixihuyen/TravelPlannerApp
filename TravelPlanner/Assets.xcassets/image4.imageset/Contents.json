@@ -1,0 +1,21 @@
+{
+  "images" : [
+    {
+      "filename" : "me-man-truoc-top-10-thien-duong-bien-dao-dep-nhat-the-gioi-ivivu-26.jpg",
+      "idiom" : "universal",
+      "scale" : "1x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "2x"
+    },
+    {
+      "idiom" : "universal",
+      "scale" : "3x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
