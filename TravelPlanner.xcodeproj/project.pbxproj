@@ -10,6 +10,8 @@
 		2649790E2E166E4E002A4B7B /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 2649790D2E166E45002A4B7B /* .gitignore */; };
 		2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */ = {isa = PBXBuildFile; productRef = 2649793E2E193554002A4B7B /* SwiftUICharts */; };
 		264979452E193940002A4B7B /* DGCharts in Frameworks */ = {isa = PBXBuildFile; productRef = 264979442E193940002A4B7B /* DGCharts */; };
+		26DB83272E27AEA100BF6F0F /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 26DB83262E27AEA100BF6F0F /* Lottie */; };
+		26DB83382E29477100BF6F0F /* WaterfallGrid in Frameworks */ = {isa = PBXBuildFile; productRef = 26DB83372E29477100BF6F0F /* WaterfallGrid */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,9 +38,22 @@
 		2649790D2E166E45002A4B7B /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		26DB83202E26A44500BF6F0F /* Exceptions for "TravelPlanner" folder in "TravelPlanner" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2649785F2E13B439002A4B7B /* TravelPlanner */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		264978622E13B439002A4B7B /* TravelPlanner */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				26DB83202E26A44500BF6F0F /* Exceptions for "TravelPlanner" folder in "TravelPlanner" target */,
+			);
 			path = TravelPlanner;
 			sourceTree = "<group>";
 		};
@@ -60,7 +75,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				264979452E193940002A4B7B /* DGCharts in Frameworks */,
+				26DB83382E29477100BF6F0F /* WaterfallGrid in Frameworks */,
 				2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */,
+				26DB83272E27AEA100BF6F0F /* Lottie in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -124,6 +141,8 @@
 			packageProductDependencies = (
 				2649793E2E193554002A4B7B /* SwiftUICharts */,
 				264979442E193940002A4B7B /* DGCharts */,
+				26DB83262E27AEA100BF6F0F /* Lottie */,
+				26DB83372E29477100BF6F0F /* WaterfallGrid */,
 			);
 			productName = TravelPlanner;
 			productReference = 264978602E13B439002A4B7B /* TravelPlanner.app */;
@@ -210,6 +229,8 @@
 			packageReferences = (
 				2649793D2E193554002A4B7B /* XCRemoteSwiftPackageReference "ChartView" */,
 				264979432E193940002A4B7B /* XCRemoteSwiftPackageReference "Charts" */,
+				26DB83252E27AEA100BF6F0F /* XCRemoteSwiftPackageReference "lottie-ios" */,
+				26DB83362E29477100BF6F0F /* XCRemoteSwiftPackageReference "WaterfallGrid" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 264978612E13B439002A4B7B /* Products */;
@@ -414,6 +435,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TravelPlanner/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -442,6 +464,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TravelPlanner/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -587,6 +610,22 @@
 				minimumVersion = 5.1.0;
 			};
 		};
+		26DB83252E27AEA100BF6F0F /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.2;
+			};
+		};
+		26DB83362E29477100BF6F0F /* XCRemoteSwiftPackageReference "WaterfallGrid" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/paololeonardi/WaterfallGrid";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -599,6 +638,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 264979432E193940002A4B7B /* XCRemoteSwiftPackageReference "Charts" */;
 			productName = DGCharts;
+		};
+		26DB83262E27AEA100BF6F0F /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 26DB83252E27AEA100BF6F0F /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
+		};
+		26DB83372E29477100BF6F0F /* WaterfallGrid */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 26DB83362E29477100BF6F0F /* XCRemoteSwiftPackageReference "WaterfallGrid" */;
+			productName = WaterfallGrid;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

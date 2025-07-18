@@ -1,5 +1,5 @@
 {
-  "originHash" : "7696d269a92678d330e62300722ab781f196eaca529c289b03f40cf2b937ca5e",
+  "originHash" : "74550efb9ac6fa337394633984294c84d8698ce54ff2fec6fe0e9e39f3599008",
   "pins" : [
     {
       "identity" : "charts",
@@ -17,6 +17,24 @@
       "state" : {
         "revision" : "9115a992c91fa19cbb4f2241084240d38654a1fc",
         "version" : "1.5.5"
+      }
+    },
+    {
+      "identity" : "lottie-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/airbnb/lottie-ios.git",
+      "state" : {
+        "revision" : "a004050748dc197c56256a14dca49a035d74726c",
+        "version" : "4.5.2"
+      }
+    },
+    {
+      "identity" : "waterfallgrid",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/paololeonardi/WaterfallGrid",
+      "state" : {
+        "revision" : "c7c08652c3540adf8e48409c351879b4caea7e89",
+        "version" : "1.1.0"
       }
     }
   ],
