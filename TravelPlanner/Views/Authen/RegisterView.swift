@@ -2,7 +2,7 @@
 import SwiftUI
 struct RegisterView : View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    @Binding var path: NavigationPath
+    @EnvironmentObject var navManager: NavigationManager
     var body: some View {
         ZStack (alignment: .topLeading){
             Color.background2.ignoresSafeArea()
@@ -14,7 +14,7 @@ struct RegisterView : View {
                 Spacer()
             }
             Button(action: {
-                path.removeLast(path.count)
+                navManager.goToRoot()
             }) {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
@@ -38,12 +38,22 @@ struct RegisterView : View {
                         .font(.system(size: horizontalSizeClass == .regular ? 28 : 15))
                         .foregroundColor(.white)
                         .padding(.bottom, horizontalSizeClass == .regular ? 38 : 0)
-                    VStack(spacing: 16) {
-                        LoginButton(icon: "envelope.fill", text: "Tiếp tục email")
-                        LoginButton(icon: "phone.fill", text: "Tiếp tục bằng số điện thoại")
-                        LoginButton(icon: "logo-facebook", text: "Tiếp tục với Facebook")
-                        LoginButton(icon: "apple.logo", text: "Tiếp tục với Apple")
-                        LoginButton(icon: "logo-google", text: "Tiếp tục với Google")
+                    VStack (spacing: 16) {
+                        LoginButton(icon: "envelope.fill", text: "Tiếp tục email"){
+                            navManager.go(to:.verifyEmail)
+                        }
+                        LoginButton(icon: "phone.fill", text: "Tiếp tục bằng số điện thoại"){
+                            navManager.go(to:.verifyEmail)
+                        }
+                        LoginButton(icon: "logo-facebook", text: "Tiếp tục với Facebook"){
+                            navManager.go(to:.verifyEmail)
+                        }
+                        LoginButton(icon: "apple.logo", text: "Tiếp tục với Apple"){
+                            navManager.go(to:.verifyEmail)
+                        }
+                        LoginButton(icon: "logo-google", text: "Tiếp tục với Google"){
+                            navManager.go(to:.verifyEmail)
+                        }
                     }
                     .padding(.top ,32)
                     VStack{
@@ -51,7 +61,7 @@ struct RegisterView : View {
                             .font(.system(size: 15))
                             .foregroundColor(.white)
                         Button {
-                            path.append(Route.signin)
+                            navManager.go(to:.signin)
                         } label: {
                             Text("Đăng nhập")
                                 .font(.system(size: 15, weight: .bold))
@@ -73,7 +83,7 @@ struct RegisterView : View {
         
     }
 }
-#Preview {
-    RegisterView(path: .constant(NavigationPath()))
-}
+
+
+
 

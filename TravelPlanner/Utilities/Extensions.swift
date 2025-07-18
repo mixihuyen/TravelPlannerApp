@@ -28,7 +28,7 @@ extension Color {
         endPoint: .trailing
     )
     static let Button2 = LinearGradient(
-        gradient: Gradient(colors: [Color("Gray"), Color("Drak gray")]),
+        gradient: Gradient(colors: [Color("Gray"), Color("Drak Gray")]),
         startPoint: .leading,
         endPoint: .trailing
     )

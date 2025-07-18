@@ -1,8 +1,78 @@
-# Xcode
-build/
-DerivedData/
-*.xcuserstate
-*.xcworkspace
-*.xcodeproj/project.xcworkspace/
-*.xcodeproj/xcuserdata/
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
 
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.xcuserstate
+*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+
+# SwiftPM
+.build/
+.swiftpm/xcode/package.xcworkspace
+
+# CocoaPods
+Pods/
+DerivedData/
+.idea/
+*.hmap
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+
+# Firebase
+GoogleService-Info.plist
+
+# Bundle
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Archive
+*.xcarchive
+
+# Playground
+timeline.xctimeline
+playground.xcworkspace
+
+# App-specific
+.env
+*.secret
+Secrets.swift
+
+# Test output
+*.gcno
+*.profraw
+*.profdata
+
+# Swift Package Plugin outputs
+PluginSandbox/

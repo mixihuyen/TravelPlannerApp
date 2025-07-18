@@ -1,10 +1,8 @@
 import SwiftUI
 struct FirstView: View {
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    @State private var path = NavigationPath()
+    @EnvironmentObject var navManager: NavigationManager
     var body: some View {
-        
-        NavigationStack(path: $path){
             ZStack {
                 Color.background2.ignoresSafeArea(edges: .all)
                 VStack {
@@ -28,7 +26,7 @@ struct FirstView: View {
                     
                     VStack(spacing: 20){
                         Button {
-                            path.append(Route.register)
+                            navManager.go(to: .register)
                         } label: {
                             Text("Đăng kí miễn phí")
                                 .font(.system(size: 18, weight: .bold, design: .default))
@@ -36,11 +34,11 @@ struct FirstView: View {
                                 .frame(width: 275, height: 50)
                                 .background(Color.Button)
                                 .cornerRadius(25)
-                        
+                            
                             
                         }
                         Button {
-                            path.append(Route.signin)
+                            navManager.go(to: .signin)
                         } label: {
                             Text("Đăng nhập")
                                 .font(.system(size: 18, weight: .bold, design: .default))
@@ -53,22 +51,17 @@ struct FirstView: View {
                                 .cornerRadius(25)
                         }
                     }
+                    .padding(.bottom, 40)
                     
                 }
                 
                 
             }
-            .navigationDestination(for: Route.self) { route in
-                            switch route {
-                            case Route.register:
-                                RegisterView(path: $path)
-                            case Route.signin:
-                                SignInView(path: $path)
-                            }
-                        }
+            
         }
+        
     }
-}
+
 #Preview {
-    FirstView()
+    RootView()
 }

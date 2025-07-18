@@ -36,6 +36,37 @@ class TripViewModel: ObservableObject {
         TripMember(name: "Chi Chi"),
         
     ]
+    
+    //Dummy Image
+    static let sampleImage: [ImageModel] = [
+        ImageModel(imageName: "image1", userName: "mixihuyen"),
+        ImageModel(imageName: "image5", userName: "mixihuyen"),
+        ImageModel(imageName: "image2", userName: "trungcry"),
+        ImageModel(imageName: "image3", userName: "phucdev"),
+        ImageModel(imageName: "image4", userName: "hungdesigner"),
+        ImageModel(imageName: "image1", userName: "mixihuyen"),
+        ImageModel(imageName: "image5", userName: "mixihuyen"),
+        ImageModel(imageName: "image2", userName: "trungcry"),
+        ImageModel(imageName: "image3", userName: "phucdev"),
+        ImageModel(imageName: "image4", userName: "hungdesigner"),
+        ImageModel(imageName: "image1", userName: "mixihuyen"),
+        ImageModel(imageName: "image5", userName: "mixihuyen"),
+        ImageModel(imageName: "image2", userName: "trungcry"),
+        ImageModel(imageName: "image3", userName: "phucdev"),
+        ImageModel(imageName: "image4", userName: "hungdesigner"),
+        ImageModel(imageName: "image1", userName: "mixihuyen"),
+        ImageModel(imageName: "image5", userName: "mixihuyen"),
+        ImageModel(imageName: "image2", userName: "trungcry"),
+        ImageModel(imageName: "image3", userName: "phucdev"),
+        ImageModel(imageName: "image4", userName: "hungdesigner"),
+        ImageModel(imageName: "image1", userName: "mixihuyen"),
+        ImageModel(imageName: "image5", userName: "mixihuyen"),
+        ImageModel(imageName: "image2", userName: "trungcry"),
+        ImageModel(imageName: "image3", userName: "phucdev"),
+        ImageModel(imageName: "image4", userName: "hungdesigner"),
+        
+        
+    ]
 
     // Dummy Packing List
     static let samplePackingList = PackingList(

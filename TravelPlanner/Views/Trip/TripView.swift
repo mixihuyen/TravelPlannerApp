@@ -1,7 +1,7 @@
 
 import SwiftUI
 
-struct HomeView: View {
+struct TripView: View {
     @StateObject private var vm = TripViewModel()
     @Environment(\.horizontalSizeClass) var size
     @EnvironmentObject var navManager: NavigationManager
@@ -22,22 +22,35 @@ struct HomeView: View {
                 Color.background
                     .ignoresSafeArea()
                 VStack{
+                    ZStack (alignment: .center) {
+                        Rectangle()
+                            .fill(Color.background2)
+                            .ignoresSafeArea()
+                        
+                        HStack{
+                            Text("Travel Planner")
+                                .font(.system(size: 32, weight: .bold, design: .default))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Button(action: {
+                                navManager.go(to: .createTrip)
+                            }) {
+                                
+                                Image(systemName: "text.badge.plus")
+                                    .font(.system(size: 30, weight: .bold))
+                                    .foregroundStyle(.white)
+                                
+                            }
+                            
+                        }
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 20)
+                    }
+                    .frame(height: 60)
+                    .frame(maxWidth: .infinity)
+                    
                     ScrollView{
                         VStack{
-                            HStack{
-                                //MARKL: Logo
-                                Image("logo")
-                                    .resizable()
-                                    .frame(width: 92, height: 117)
-                                    .padding()
-                                Text("Travel\n Planner")
-                                    .font(.system(size: 32, weight: .bold, design: .default))
-                                    .foregroundColor(.white)
-                                Spacer()
-                                Image(systemName: "person.circle")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.white)
-                            }
                             LazyVGrid(columns: columns, spacing: 50) {
                                 ForEach(vm.trips) { trip in
                                     NavigationLink(destination: TabBar(trip: trip)) {
@@ -57,22 +70,8 @@ struct HomeView: View {
                         .frame(maxWidth: 900)
                         .frame(maxWidth: .infinity)
                     }
-                    .padding(.top, 10)
                     Spacer()
-                    ZStack{
-                        Button(action: {
-                            navManager.go(to: .createTrip)
-                        }) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color.white)
-                                    .frame(width: 41, height: 41)
-                                    .rotationEffect(.degrees(45))
-                                Image(systemName: "plus")
-                                    .font(.system(size: 21, weight: .bold))
-                            }
-                        }
-                    }
+                    
                 }
             }
             .navigationBarBackButtonHidden(true)
@@ -84,6 +83,6 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    TripView()
 }
 

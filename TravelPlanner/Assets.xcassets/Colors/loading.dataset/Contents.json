@@ -1,0 +1,12 @@
+{
+  "data" : [
+    {
+      "filename" : "Progress Bar loader.json",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
