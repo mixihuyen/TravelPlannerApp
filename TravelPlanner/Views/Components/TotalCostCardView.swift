@@ -6,6 +6,7 @@ struct TotalCostCardView: View {
             GeometryReader { geometry in
                 let sizeWith = geometry.size.width
                 HStack {
+                    Spacer()
                     VStack(spacing: 8) {
                         Text("Tổng giá")
                             .font(.system(size: 12, weight: .bold))
@@ -14,11 +15,12 @@ struct TotalCostCardView: View {
                             .font(.system(size: 12))
                             .foregroundColor(.white)
                     }
-                    .frame(width: sizeWith/2 - 5)
+                    Spacer()
                     
                     Divider()
                         .frame(height: 40)
                         .background(Color.white.opacity(0.4))
+                    Spacer()
                     
                     VStack(spacing: 8) {
                         Text("Tổng chi")
@@ -28,7 +30,7 @@ struct TotalCostCardView: View {
                             .font(.system(size: 12))
                             .foregroundColor(.white)
                     }
-                    .frame(width: sizeWith/2)
+                    Spacer()
                     
                 }
                 .padding(.vertical, 40)
@@ -40,4 +42,7 @@ struct TotalCostCardView: View {
         .background(Color.WidgetBackground2)
         .clipShape(RoundedRectangle(cornerRadius: 15))
     }
+}
+#Preview {
+    TotalCostCardView()
 }

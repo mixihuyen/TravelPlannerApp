@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     @StateObject private var navManager = NavigationManager()
     @StateObject private var authManager: AuthManager
+    @StateObject private var viewModel = TripViewModel()
     
     init() {
         let navManager = NavigationManager()
@@ -39,10 +40,15 @@ struct RootView: View {
                 case .tripView:
                     TripView()
                 case .createTrip:
-                    CreateTripPopup()
+                    CreateTripView()
+                case .tabBarView(let trip):
+                    TabBar(trip: trip)
+                case .activity(let date, let activities):
+                                ActivityView(date: date, activities: activities)
                 }
             }
         }
+        .environmentObject(viewModel)
         .environmentObject(navManager)
         .environmentObject(authManager)
     }

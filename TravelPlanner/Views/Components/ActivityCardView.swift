@@ -1,11 +1,10 @@
-
 import SwiftUI
 
 struct ActivityCardView: View {
     let activity: TripActivity
     
     var body: some View {
-        HStack (alignment: .top) {
+        HStack(alignment: .top) {
             ZStack {
                 Circle()
                     .fill(Color.WidgetBackground1)
@@ -14,10 +13,23 @@ struct ActivityCardView: View {
                         Circle()
                             .stroke(Color.line, lineWidth: 1)
                     )
-                Text(activity.timeRange2)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
+                VStack{
+                    Text("\(Formatter.formatTime(activity.startTime))")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    Text("→")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    Text("\(Formatter.formatTime(activity.endTime))")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                }
+                
+                
+                
             }
             VStack(alignment: .leading) {
                 HStack {
@@ -27,10 +39,9 @@ struct ActivityCardView: View {
                     Text("Hoạt động: ")
                         .font(.system(size: 14))
                         .foregroundColor(.white)
-                    Text(activity.name)
+                    Text(activity.activity)
                         .font(.system(size: 14))
                         .foregroundColor(.white)
-                    
                 }
                 Divider()
                 HStack {
@@ -40,7 +51,7 @@ struct ActivityCardView: View {
                     Text("Địa điểm: ")
                         .font(.system(size: 14))
                         .foregroundColor(.white)
-                    Text(activity.address ?? "Không có địa chỉ")
+                    Text(activity.address.isEmpty ? "Không có địa chỉ" : activity.address)
                         .font(.system(size: 14))
                         .foregroundColor(.white)
                 }
@@ -48,36 +59,34 @@ struct ActivityCardView: View {
                 GeometryReader { geometry in
                     let sizeWidth = geometry.size.width
                     
-                    HStack{
-                        VStack (spacing: 10) {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 10) {
                             Text("Giá:")
-                                .font(.system(size: 14, weight: .bold, ))
+                                .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                                 .underline()
-                            Text("\(activity.estimatedCost ?? 0, specifier: "%.0f") VNĐ")
-                            
+                            Text(Formatter.formatCost(activity.estimatedCost))
                                 .font(.system(size: 14))
                                 .foregroundColor(.white)
                         }
-                        .frame(width: sizeWidth/2)
+                        Spacer()
                         Divider()
-                        VStack (spacing: 10) {
+                        Spacer()
+                        VStack(spacing: 10) {
                             Text("Chi tiêu thực tế")
-                                .font(.system(size: 14, weight: .bold,))
+                                .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                                 .underline()
-                            Text("\(activity.actualCost ?? 0, specifier: "%.0f") VNĐ")
-                            
+                            Text(Formatter.formatCost(activity.actualCost))
                                 .font(.system(size: 14))
                                 .foregroundColor(.white)
                         }
-                        .frame(width: sizeWidth/2)
+                        Spacer()
                     }
                     .padding(.vertical, 16)
-                    
                 }
                 .frame(height: 80)
-                
                 
                 Divider()
                 HStack {
@@ -97,26 +106,7 @@ struct ActivityCardView: View {
             .clipShape(RoundedRectangle(cornerRadius: 15))
         }
     }
-}
-
-#Preview {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "dd/MM/yyyy HH:mm"
     
-    let activity = TripActivity(
-        date: formatter.date(from: "30/06/2025 00:00")!,
-        startTime: formatter.date(from: "30/06/2025 06:00")!,
-        endTime: formatter.date(from: "30/06/2025 08:00")!,
-        name: "Đi oto từ HN vào Huế",
-        address: "669 Giải Phóng",
-        estimatedCost: 400_000,
-        actualCost: 800_000,
-        note: "Nhà xe Minh Mập\n0905347000"
-    )
     
-    return ZStack {
-        Color.background.ignoresSafeArea()
-        ActivityCardView(activity: activity)
-            .padding()
-    }
+    
 }

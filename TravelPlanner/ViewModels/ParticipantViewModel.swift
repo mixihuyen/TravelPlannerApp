@@ -10,6 +10,11 @@ class ParticipantViewModel: ObservableObject {
     }
 
     func fetchParticipants(tripId: Int) {
+        if let cachedData = loadFromCache(tripId: tripId) {
+            self.participants = cachedData
+            return
+        }
+        
         guard let token = token else {
             print("Không có token, không thể gọi API.")
             return
@@ -53,7 +58,34 @@ class ParticipantViewModel: ObservableObject {
                 }
 
                 self?.participants = data.participants
+                self?.saveToCache(participants: data.participants, tripId: tripId)
             }
             .store(in: &cancellables)
+    }
+    
+    private func saveToCache(participants: [Participant], tripId: Int) {
+        do {
+            let data = try JSONEncoder().encode(participants)
+            UserDefaults.standard.set(data, forKey: "participants_\(tripId)")
+            UserDefaults.standard.set(Date(), forKey: "participants_cache_date_\(tripId)")
+        } catch {
+            print("Lỗi khi lưu cache: \(error.localizedDescription)")
+        }
+    }
+    
+    private func loadFromCache(tripId: Int) -> [Participant]? {
+        guard let cacheDate = UserDefaults.standard.object(forKey: "participants_cache_date_\(tripId)") as? Date,
+              Date().timeIntervalSince(cacheDate) < 3600,
+              let data = UserDefaults.standard.data(forKey: "participants_\(tripId)") else {
+            return nil
+        }
+        
+        do {
+            let participants = try JSONDecoder().decode([Participant].self, from: data)
+            return participants
+        } catch {
+            print("Lỗi khi đọc cache: \(error.localizedDescription)")
+            return nil
+        }
     }
 }

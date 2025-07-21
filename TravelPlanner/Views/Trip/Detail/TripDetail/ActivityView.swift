@@ -6,7 +6,6 @@ struct ActivityView: View {
     let activities: [TripActivity]
     
     var body: some View {
-        NavigationStack {
             ZStack (alignment: .topLeading){
                 Color.background.ignoresSafeArea()
                 VStack (alignment: .leading){
@@ -79,7 +78,6 @@ struct ActivityView: View {
                 
             }
             
-        }
         .navigationBarBackButtonHidden(true)
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 class NavigationManager: ObservableObject {
     @Published var path = NavigationPath()
+    @Published var showSuccessToastOnce: Bool = false
     
     func go(to route: Route) {
         print("Navigating to: \(route)")

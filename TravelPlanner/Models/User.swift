@@ -1,8 +1,17 @@
-import Foundation
 struct User: Codable {
     let id: Int
+    let firstName: String?
+    let lastName: String?
+    let username: String
     let email: String
-    var first_name: String?
-    var last_name: String?
-    var username: String?
+    let password: String?
+    let createdAt: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, email, password
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case createdAt, updatedAt
+    }
 }

@@ -19,7 +19,7 @@ struct HomeView: View {
                 .frame(height: 40)
                 .frame(maxWidth: .infinity)
                 ScrollView {
-                        ForEach(TripViewModel.sampleImage) { item in
+                        ForEach(ImageViewModel.sampleImages) { item in
                             VStack(spacing: 0) {
                                 Image(item.imageName)
                                     .resizable()

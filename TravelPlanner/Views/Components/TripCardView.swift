@@ -6,17 +6,17 @@ struct TripCardView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack{
-                if let data = trip.image, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geo.size.width, height: 106)
-                        .mask(
-                            TripCard()
-                                .frame(width: geo.size.width, height: 106)
-                        )
-                    
-                } else {
+//                if let data = trip.image, let uiImage = UIImage(data: data) {
+//                    Image(uiImage: uiImage)
+//                        .resizable()
+//                        .scaledToFill()
+//                        .frame(width: geo.size.width, height: 106)
+//                        .mask(
+//                            TripCard()
+//                                .frame(width: geo.size.width, height: 106)
+//                        )
+//                    
+//                } else {
                     Image("default_image")
                         .resizable()
                         .scaledToFill()
@@ -25,21 +25,31 @@ struct TripCardView: View {
                             TripCard()
                                 .frame(width: geo.size.width, height: 106)
                         )
-                }
+                //}
                 
                 TripCard()
                     .fill(Color.tripBackground)
                     .frame(width: geo.size.width, height: 106)
                 HStack {
                     VStack(alignment: .leading) {
+                        Text(trip.tripParticipants?.first?.role ?? "Unknown")
+                            .font(.caption)
+                            .foregroundColor(Color.pink)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.background.opacity(0.8))
+                            .cornerRadius(20)
                         Text(trip.name)
-                            .font(.headline)
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundColor(Color.white)
-                        Text("\(trip.startDate) → \(trip.endDate)")
+                            .lineLimit(1)
+                                .truncationMode(.tail)
+                        Text("\(Formatter.formatDate1(trip.startDate)) → \(Formatter.formatDate1(trip.endDate))")
                             .font(.caption)
                             .foregroundColor(Color.white)
                     }
                     .padding(.horizontal, 15)
+                    .padding(.top, -20)
                     Spacer()
                     VStack{
                         Image("cat")

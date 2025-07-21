@@ -1,32 +1,28 @@
-import Foundation
+struct TripActivity: Codable, Identifiable {
+    let id: Int
+    let tripDayId: Int
+    let startTime: String
+    let endTime: String
+    let activity: String
+    let address: String
+    let estimatedCost: String
+    let actualCost: String
+    let note: String
+    let createdAt: String
+    let updatedAt: String
 
-struct TripActivity: Identifiable, Equatable {
-    let id = UUID()
-    let date: Date
-    let startTime: Date
-    let endTime: Date
-    let name: String
-    let address: String?
-    var estimatedCost: Double? = 0
-    var actualCost: Double? = 0
-    let note: String?
-    
-    // MARK: - Tiện ích hiển thị giờ dạng "HH:mm - HH:mm"
-    var timeRange: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return "\(formatter.string(from: startTime)) - \(formatter.string(from: endTime))"
-    }
-    var timeRange2: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return "\(formatter.string(from: startTime)) \n \(formatter.string(from: endTime))"
-    }
-    
-    // MARK: - Lấy ngày dạng "dd/MM/yyyy"
-    var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM/yyyy"
-        return formatter.string(from: date)
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tripDayId = "trip_day_id"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case activity
+        case address
+        case estimatedCost = "estimated_cost"
+        case actualCost = "actual_cost"
+        case note
+        case createdAt
+        case updatedAt
     }
 }
+

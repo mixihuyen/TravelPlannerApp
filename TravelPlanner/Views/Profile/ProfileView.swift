@@ -2,7 +2,7 @@ import SwiftUI
 import WaterfallGrid
 struct ProfileView: View {
     @State private var showSidebar = false
-    let images = TripViewModel.sampleImage
+    let images = ImageViewModel.sampleImages
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var navManager: NavigationManager
     var body: some View {

@@ -4,6 +4,7 @@ struct TripDetailView: View {
     let trip: TripModel
     
     @StateObject var viewModel: TripDetailViewModel
+    @EnvironmentObject var navManager: NavigationManager
     init(trip: TripModel) {
         self.trip = trip
         _viewModel = StateObject(wrappedValue: TripDetailViewModel(trip: trip))
@@ -11,7 +12,6 @@ struct TripDetailView: View {
     
     
     var body: some View {
-        NavigationStack{
             ZStack {
                 Color.background
                     .ignoresSafeArea()
@@ -53,7 +53,7 @@ struct TripDetailView: View {
                                         .font(.system(size: 20))
                                         .bold()
                                         .foregroundColor(.white)
-                                    Text("\(trip.startDate) → \(trip.endDate)")
+                                    Text("\(Formatter.formatDate1(trip.startDate)) → \(Formatter.formatDate1(trip.endDate))")
                                         .foregroundColor(.white)
                                         .font(.system(size: 12))
                                 }
@@ -75,22 +75,20 @@ struct TripDetailView: View {
                                         .padding(.top, 150)
                                 } else {
                                     ForEach(viewModel.tripDays, id: \.self) { date in
-                                        NavigationLink(destination: ActivityView(date: date, activities: viewModel.activities(for: date))) {
+                                        Button {
+                                            let route = Route.activity(date: date, activities: viewModel.activities(for: date))
+                                            navManager.path.append(route)
+                                        } label: {
                                             TripDayWidgetView(
-                                                title: viewModel.formattedDate(date),
+                                                title: Formatter.formatDate2(date),
                                                 activities: viewModel.activities(for: date),
-                                                formatTime: viewModel.formatTime
-                                                
+                                                formatTime: Formatter.formatTime
                                             )
-                                            
                                         }
                                         .buttonStyle(PlainButtonStyle())
                                     }
                                 }
-                                
-                                
                             }
-                            
                         }
                         .padding(.horizontal, 20)
                         
@@ -99,7 +97,7 @@ struct TripDetailView: View {
                 }
                 .ignoresSafeArea()
             }
-        }
+        
         
     }
 }
