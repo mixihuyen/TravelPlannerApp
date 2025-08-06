@@ -29,6 +29,13 @@ class AuthManager: ObservableObject {
         }
     }
     
+    func avatarInitials() -> String {
+        let firstInitial = UserDefaults.standard.string(forKey: "firstName")?.prefix(1) ?? ""
+        let lastInitial = UserDefaults.standard.string(forKey: "lastName")?.prefix(1) ?? ""
+        return "\(firstInitial)\(lastInitial)".uppercased()
+    }
+
+    
     func signIn(token: String, firstName: String?, lastName: String?, username: String?, email: String?) {
         UserDefaults.standard.set(token, forKey: "authToken")
         UserDefaults.standard.set(firstName, forKey: "firstName")

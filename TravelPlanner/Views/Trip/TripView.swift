@@ -55,12 +55,11 @@ struct TripView: View {
                                         .padding(.top, 250)
                                 } else {
                                     ForEach(viewModel.trips) { trip in
-                                        NavigationLink(destination: TabBar(trip: trip))  {
-                                            TripCardView(trip: trip)
-                                                .frame(maxWidth: .infinity)
-                                            
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
+                                        NavigationLink(value: Route.tabBarView(trip: trip)) {
+                                                                    TripCardView(trip: trip)
+                                                                        .frame(maxWidth: .infinity)
+                                                                }
+                                                                .buttonStyle(PlainButtonStyle())
                                         
                                     }
                                 }

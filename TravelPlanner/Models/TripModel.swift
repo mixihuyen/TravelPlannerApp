@@ -1,6 +1,6 @@
 import Foundation
 
-struct TripModel: Identifiable, Codable, Hashable{
+struct TripModel: Identifiable, Codable, Hashable {
     let id: Int
     let name: String
     let description: String?
@@ -10,7 +10,7 @@ struct TripModel: Identifiable, Codable, Hashable{
     let createdByUserId: Int
     let createdAt: String
     let updatedAt: String
-    let tripParticipants: [TripParticipant]?
+    var tripParticipants: [TripParticipant]?
 
     enum CodingKeys: String, CodingKey {
         case id, name, description
@@ -20,6 +20,14 @@ struct TripModel: Identifiable, Codable, Hashable{
         case createdByUserId = "created_by_user_id"
         case createdAt, updatedAt
         case tripParticipants = "TripParticipants"
+    }
+
+    static func == (lhs: TripModel, rhs: TripModel) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 
@@ -33,4 +41,23 @@ struct TripListResponse: Codable {
     let success: Bool
     let data: [TripModel]
 }
+
+struct VoidResponse: Codable {}
+
+struct TripRequest: Codable {
+    let name: String
+    let description: String?
+    let startDate: String
+    let endDate: String
+    let status: String
+    let createdByUserId: Int
+
+    enum CodingKeys: String, CodingKey {
+        case name, description, status
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case createdByUserId = "created_by_user_id"
+    }
+}
+
 

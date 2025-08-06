@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct TotalCostCardView: View {
+    let totalActualCost: Double
+    let totalEstimatedCost: Double
+    
     var body: some View {
         VStack {
             GeometryReader { geometry in
@@ -8,11 +11,11 @@ struct TotalCostCardView: View {
                 HStack {
                     Spacer()
                     VStack(spacing: 8) {
-                        Text("Tổng giá")
+                        Text("Tổng ước tính")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.white)
-                        Text("0")
-                            .font(.system(size: 12))
+                        Text("\(Formatter.formatCost(totalEstimatedCost))")
+                            .font(.system(size: 14))
                             .foregroundColor(.white)
                     }
                     Spacer()
@@ -22,19 +25,18 @@ struct TotalCostCardView: View {
                         .background(Color.white.opacity(0.4))
                     Spacer()
                     
+                    
                     VStack(spacing: 8) {
-                        Text("Tổng chi")
+                        Text("Tổng thực tế")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.white)
-                        Text("0")
-                            .font(.system(size: 12))
+                        Text("\(Formatter.formatCost(totalActualCost))")
+                            .font(.system(size: 14))
                             .foregroundColor(.white)
                     }
                     Spacer()
-                    
                 }
                 .padding(.vertical, 40)
-                
             }
         }
         .frame(height: 120)
@@ -43,6 +45,7 @@ struct TotalCostCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 15))
     }
 }
+
 #Preview {
-    TotalCostCardView()
+    TotalCostCardView(totalActualCost: 1000000, totalEstimatedCost: 1200000)
 }

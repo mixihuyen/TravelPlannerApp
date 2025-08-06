@@ -17,12 +17,16 @@ struct ProfileView: View {
                             .frame(width: 24, height: 24)
                         Spacer()
                         VStack{
-                            Image("profile")
-                                .resizable()
-                                .background(Color.gray.opacity(0.2))
-                                .frame(width: 130, height: 130)
-                                .clipShape(Circle())
-                                .padding()
+                            Circle()
+                                .fill(Color.gray)
+                                .frame(width: 100, height: 100)
+                                .overlay(
+                                    Text(authManager.avatarInitials())
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.white)
+                                )
+                            
+                            
                             Text(authManager.currentUserName ?? "Name")
                                 .font(.system(size: 20))
                                 .foregroundColor(.white)
@@ -32,6 +36,7 @@ struct ProfileView: View {
                                 .foregroundColor(.gray)
                             
                         }
+                        .padding(.top, 50)
                         Spacer()
                         
                         
@@ -89,6 +94,4 @@ struct ProfileView: View {
         }
     }
 }
-#Preview {
-    ProfileView()
-}
+

@@ -21,6 +21,6 @@ struct SuccessToastView: View {
         )
         .shadow(radius: 10)
         .transition(.move(edge: .top).combined(with: .opacity))
-        .animation(.easeInOut(duration: 0.4), value: UUID()) // For animation refresh
+        .animation(.easeInOut(duration: 0.4), value: UUID()) 
     }
 }

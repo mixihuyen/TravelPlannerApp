@@ -32,7 +32,7 @@ struct CreateTripView: View {
                 }
                 Spacer()
                 Text("Tạo chuyến đi mới")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
                 Spacer()
             }
@@ -104,7 +104,7 @@ struct CreateTripView: View {
         resetForm()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0)  {
-            navManager.go(to: .tripView)
+            navManager.goToRoot()
         }
     }
     

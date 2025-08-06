@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct HomeTabBar: View {
-
     
     init() {
         let appearance = UITabBarAppearance()

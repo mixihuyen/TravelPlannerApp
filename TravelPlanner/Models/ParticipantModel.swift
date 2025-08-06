@@ -19,9 +19,30 @@ struct Participant: Codable, Identifiable {
 struct ParticipantResponse: Codable {
     let success: Bool
     let message: String?
-    let data: ParticipantDataResponse?
+    let data: ParticipantData?
+    
+    
+    struct ParticipantData: Codable {
+        let participants: [Participant]
+    }
+}
+struct UserSearchResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: [User]?
 }
 
-struct ParticipantDataResponse: Codable {
-    let participants: [Participant]
+struct AddParticipantResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: AddParticipantData?
 }
+
+struct AddParticipantData: Codable {
+    let tripParticipant: TripParticipant
+}
+struct BaseResponse: Decodable {
+    let success: Bool
+    let message: String?
+}
+

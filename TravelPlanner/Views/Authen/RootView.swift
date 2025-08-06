@@ -14,7 +14,6 @@ struct RootView: View {
     var body: some View {
         NavigationStack(path: $navManager.path) {
             ZStack {
-                // Nội dung chính dựa trên trạng thái đăng nhập
                 if authManager.isAuthenticated {
                     HomeTabBar()
                 } else {
@@ -22,30 +21,42 @@ struct RootView: View {
                 }
             }
             .navigationDestination(for: Route.self) { route in
-                switch route {
-                case .register:
-                    RegisterView()
-                case .signin:
-                    SignInView()
-                case .verifyEmail:
-                    VerifyView()
-                case .otpview(let email):
-                    OTPView(email: email)
-                case .nameView:
-                    NameView()
-                case .usernameView:
-                    UserNameView()
-                case .homeTabBar:
-                    HomeTabBar()
-                case .tripView:
-                    TripView()
-                case .createTrip:
-                    CreateTripView()
-                case .tabBarView(let trip):
-                    TabBar(trip: trip)
-                case .activity(let date, let activities):
-                                ActivityView(date: date, activities: activities)
+                Group {
+                    switch route {
+                    case .register:
+                        RegisterView()
+                    case .signin:
+                        SignInView()
+                    case .verifyEmail:
+                        VerifyView()
+                    case .otpview(let email):
+                        OTPView(email: email)
+                    case .nameView:
+                        NameView()
+                    case .usernameView:
+                        UserNameView()
+                    case .homeTabBar:
+                        HomeTabBar()
+                    case .tripView:
+                        TripView()
+                    case .tripDetailView(let trip):
+                        TripDetailView(trip: trip)
+                    case .createTrip:
+                        CreateTripView()
+                    case .tabBarView(let trip):
+                        TabBar(trip: trip)
+                    case .activity(let date, let activities, let trip):
+                        ActivityView(date: date, activities: activities, trip: trip)
+                            .environmentObject(TripDetailViewModel(trip: trip))
+                    case .addActivity(let date, let trip):
+                        AddActivityView(selectedDate: date, trip: trip)
+                            .environmentObject(TripDetailViewModel(trip: trip))
+                    case .editActivity(let date, let activity, let trip):
+                        EditActivityView(selectedDate: date,  trip: trip, activity: activity)
+                            .environmentObject(TripDetailViewModel(trip: trip))
+                    }
                 }
+                
             }
         }
         .environmentObject(viewModel)
@@ -54,8 +65,3 @@ struct RootView: View {
     }
 }
 
-struct RootView_Previews: PreviewProvider {
-    static var previews: some View {
-        RootView()
-    }
-}

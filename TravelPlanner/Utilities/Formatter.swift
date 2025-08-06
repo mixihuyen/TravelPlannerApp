@@ -30,18 +30,23 @@ struct Formatter {
             formatter.timeZone = TimeZone(secondsFromGMT: 0) 
             return formatter
         }()
+    static let apiDateTimeFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.locale = Locale(identifier: "vi_VN")
+            return formatter
+        }()
     
-    static func formatCost(_ cost: String) -> String {
-        if let doubleCost = Double(cost) {
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.groupingSeparator = ","
-            formatter.minimumFractionDigits = 0
-            formatter.maximumFractionDigits = 0
-            return "\(formatter.string(from: NSNumber(value: doubleCost)) ?? "0") VNĐ"
-        }
-        return "0 VNĐ"
+    static func formatCost(_ cost: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+        return "\(formatter.string(from: NSNumber(value: cost)) ?? "0") đ"
     }
+    
     static func formatTime(_ time: String) -> String {
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

@@ -17,7 +17,7 @@ struct TripDay: Codable, Identifiable {
     let day: String
     let createdAt: String
     let updatedAt: String
-    let activities: [TripActivity]
+    var activities: [TripActivity]
 
     enum CodingKeys: String, CodingKey {
         case id

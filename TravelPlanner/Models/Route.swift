@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum Route: Hashable {
     case register
@@ -9,9 +10,10 @@ enum Route: Hashable {
     case usernameView
     case homeTabBar
     case tripView
+    case tripDetailView(trip: TripModel)
     case createTrip
     case tabBarView(trip: TripModel)
-    case activity(date: Date, activities: [TripActivity])
-    
-    
+    case activity(date: Date, activities: [TripActivity], trip: TripModel)
+    case addActivity(date: Date, trip: TripModel)
+    case editActivity(date: Date, activity: TripActivity, trip: TripModel)
 }

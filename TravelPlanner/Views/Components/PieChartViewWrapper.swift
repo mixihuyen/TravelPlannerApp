@@ -45,7 +45,7 @@ struct PieChartViewWrapper: UIViewRepresentable {
             var mapping: [TripActivity: UIColor] = [:]
             for (index, entry) in entries.enumerated() {
                 if let activityName = entry.data as? String,
-                   let activity = activities.first(where: { $0.activity == activityName && (Double($0.actualCost) ?? 0) == entry.value }) {
+                   let activity = activities.first(where: { $0.activity == activityName && $0.actualCost == entry.value }) {
                     mapping[activity] = colors[index % colors.count]
                 }
             }
@@ -54,33 +54,15 @@ struct PieChartViewWrapper: UIViewRepresentable {
     }
 
     private func makePieEntries(from activities: [TripActivity]) -> [PieChartDataEntry] {
-        let total = activities.compactMap { Double($0.actualCost) }.reduce(0, +)
+        let total = activities.map { $0.actualCost }.reduce(0, +)
         return activities.compactMap { activity in
-            guard let actual = Double(activity.actualCost), actual > 0 else { return nil }
-            let percent = actual / total
+            guard activity.actualCost > 0 else { return nil }
+            let percent = activity.actualCost / total
             let shouldShowLabel = percent >= 0.15
             let shortLabel = shouldShowLabel ? (activity.activity.count > 12 ? String(activity.activity.prefix(10)) + "..." : activity.activity) : nil
-            let entry = PieChartDataEntry(value: actual, label: shortLabel)
+            let entry = PieChartDataEntry(value: activity.actualCost, label: shortLabel)
             entry.data = activity.activity as NSString
             return entry
         }
-    }
-}
-
-extension TripActivity: Hashable {
-    public static func == (lhs: TripActivity, rhs: TripActivity) -> Bool {
-        lhs.activity == rhs.activity && lhs.actualCost == rhs.actualCost
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(activity)
-        hasher.combine(actualCost)
-    }
-}
-
-extension TripActivity {
-    func toPieEntry() -> PieChartDataEntry? {
-        guard let actual = Double(actualCost), actual > 0 else { return nil }
-        return PieChartDataEntry(value: actual, label: activity)
     }
 }

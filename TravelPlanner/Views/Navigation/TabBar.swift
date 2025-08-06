@@ -6,10 +6,12 @@ struct TabBar: View {
     @State private var showBottomSheet = false
     @EnvironmentObject var viewModel: TripViewModel
     @EnvironmentObject var navManager: NavigationManager
+    @StateObject private var tripDetailViewModel: TripDetailViewModel
     
     
     init(trip: TripModel) {
         self.trip = trip
+        self._tripDetailViewModel = StateObject(wrappedValue: TripDetailViewModel(trip: trip))
         
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
@@ -23,6 +25,8 @@ struct TabBar: View {
         
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
+        
+        print("📋 Trip ID trong TabBar: \(trip.id)")
     }
     
     var body: some View {
@@ -39,18 +43,22 @@ struct TabBar: View {
                         Label("Thành viên", systemImage: "person.2.fill")
                     }
                 
-                //                PackingListView(
-                //                    viewModel: PackingListViewModel(tripId: trip.id)
-                //                )
-                //                .tabItem {
-                //                    Label("Mang theo", systemImage: "duffle.bag.fill")
-                //                }
+                PackingListView(
+                    viewModel: PackingListViewModel(tripId: trip.id)
+                )
+                .tabItem {
+                    Label("Mang theo", systemImage: "duffle.bag.fill")
+                }
                 
-                //                StatisticalView(trip: trip)
-                //                    .tabItem {
-                //                        Label("Chi tiêu", systemImage: "dollarsign.circle.fill")
-                //                    }
+                StatisticalView(tripId: trip.id)
+                    .tabItem {
+                        Label("Chi tiêu", systemImage: "dollarsign.circle.fill")
+                    }
             }
+            .environmentObject(tripDetailViewModel)
+            .onAppear {
+                            print("📋 TripDetailViewModel được inject trong TabBar: \(tripDetailViewModel)")
+                        }
             
             HStack(spacing: 5) {
                 Button(action: {
@@ -95,7 +103,10 @@ struct TabBar: View {
                             DispatchQueue.main.asyncAfter(deadline: .now()) {
                                 viewModel.toastMessage = "Xoá chuyến đi thành công!"
                                 viewModel.showToast = true
-                                navManager.go(to: .tripView)
+                                dismiss()
+                                DispatchQueue.main.asyncAfter(deadline: .now()) {
+                                    navManager.goToRoot()
+                                }
                             }
                         } else {
                             withAnimation {
@@ -118,7 +129,13 @@ struct TabBar: View {
             .ignoresSafeArea()
             .environmentObject(navManager)
         }
-
+        .onAppear {
+                    // Kiểm tra thêm khi view xuất hiện
+                    print("📋 Trip ID khi TabBar xuất hiện: \(trip.id)")
+                    if trip.id <= 0 {
+                        print("⚠️ Cảnh báo: trip.id không hợp lệ (\(trip.id))")
+                    }
+                }
         
         
         

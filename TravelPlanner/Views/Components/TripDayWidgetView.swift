@@ -29,8 +29,8 @@ struct TripDayWidgetView: View {
                             .foregroundColor(.white)
                             .font(.system(size: 12))
                             .bold()
-                            .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.vertical, 16)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     } else {
                         ForEach(activities.indices, id: \.self) { index in
                             let activity = activities[index]
@@ -55,13 +55,16 @@ struct TripDayWidgetView: View {
                                 Divider().background(Color.white.opacity(0.3))
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 15)
                         .fill(Color.WidgetBackground2)
+                        
                 )
+                
             }
         }
     }

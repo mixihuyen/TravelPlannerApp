@@ -76,7 +76,7 @@ struct TripDetailView: View {
                                 } else {
                                     ForEach(viewModel.tripDays, id: \.self) { date in
                                         Button {
-                                            let route = Route.activity(date: date, activities: viewModel.activities(for: date))
+                                            let route = Route.activity(date: date, activities: viewModel.activities(for: date), trip: trip)
                                             navManager.path.append(route)
                                         } label: {
                                             TripDayWidgetView(
@@ -95,8 +95,10 @@ struct TripDetailView: View {
                     }
                     
                 }
+                .padding(.bottom, 87)
                 .ignoresSafeArea()
             }
+
         
         
     }

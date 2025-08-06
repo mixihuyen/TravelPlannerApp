@@ -1,40 +1,33 @@
 import SwiftUI
 
-struct AddActivityView: View {
+struct EditActivityView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var navManager: NavigationManager
     let selectedDate: Date
     let trip: TripModel
+    let activity: TripActivity
     @EnvironmentObject var viewModel: TripDetailViewModel
-    @State private var activityName: String = ""
-    @State private var address: String = ""
+    @State private var activityName: String
+    @State private var address: String
     @State private var startTime: Date
     @State private var endTime: Date
-    @State private var estimatedCost: Double = 0.0
-    @State private var actualCost: Double = 0.0
-    @State private var note: String = ""
+    @State private var estimatedCost: Double
+    @State private var actualCost: Double
+    @State private var note: String
+    @State private var showToast: Bool = false
+    @State private var toastMessage: String = ""
     
-    init(selectedDate: Date, trip: TripModel) {
+    init(selectedDate: Date, trip: TripModel, activity: TripActivity) {
         self.selectedDate = selectedDate
         self.trip = trip
-        let calendar = Calendar.current
-        let dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
-        let startHourMinute = calendar.dateComponents([.hour, .minute], from: Date())
-        let endHourMinute = calendar.dateComponents([.hour, .minute], from: Date().addingTimeInterval(3600))
-        
-        self._startTime = State(initialValue: calendar.date(from: {
-            var components = dateComponents
-            components.hour = startHourMinute.hour
-            components.minute = startHourMinute.minute
-            return components
-        }()) ?? selectedDate)
-        
-        self._endTime = State(initialValue: calendar.date(from: {
-            var components = dateComponents
-            components.hour = endHourMinute.hour
-            components.minute = endHourMinute.minute
-            return components
-        }()) ?? selectedDate.addingTimeInterval(3600))
+        self.activity = activity
+        self._activityName = State(initialValue: activity.activity)
+        self._address = State(initialValue: activity.address)
+        self._startTime = State(initialValue: Formatter.apiDateTimeFormatter.date(from: activity.startTime) ?? selectedDate)
+        self._endTime = State(initialValue: Formatter.apiDateTimeFormatter.date(from: activity.endTime) ?? selectedDate.addingTimeInterval(3600))
+        self._estimatedCost = State(initialValue: activity.estimatedCost)
+        self._actualCost = State(initialValue: activity.actualCost)
+        self._note = State(initialValue: activity.note)
     }
     
     var body: some View {
@@ -64,7 +57,7 @@ struct AddActivityView: View {
                     .font(.system(size: 20))
             }
             Spacer()
-            Text("Thêm hoạt động")
+            Text("Chỉnh sửa hoạt động")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(.white)
             Spacer()
@@ -84,15 +77,13 @@ struct AddActivityView: View {
                 Text("Tên hoạt động")
                     .font(.system(size: 16))
                     .foregroundColor(.white)
-                CustomTextField(placeholder: "", text: $activityName, autocapitalization: .sentences, showIconImage: true,
-                                imageName: "activity")
+                CustomTextField(placeholder: "", text: $activityName, autocapitalization: .sentences, showIconImage: true, imageName: "activity")
                 .padding(.bottom, 10)
-                
                 Text("Địa điểm")
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                 CustomTextField(placeholder: "", text: $address, autocapitalization: .sentences, showIconImage: true,
-                                imageName: "address", height: 80, isMultiline: true)
+                              imageName: "address", height: 80, isMultiline: true)
             }
             .padding(.horizontal)
             .padding(.bottom, 5)
@@ -100,7 +91,6 @@ struct AddActivityView: View {
             Divider()
                 .frame(width: 1)
                 .background(Color.Button)
-            
             
             Text("THỜI GIAN")
                 .font(.system(size: 16))
@@ -134,14 +124,13 @@ struct AddActivityView: View {
                             .font(.system(size: 16))
                             .foregroundColor(.white)
                     }
-                    
                 }
                 Spacer()
                 Divider()
                     .frame(width: 1)
                     .background(Color.Button)
                 Spacer()
-                VStack (alignment: .leading){
+                VStack(alignment: .leading){
                     Text("Chi phí thực tế")
                         .font(.system(size: 16))
                         .foregroundColor(.white)
@@ -151,7 +140,6 @@ struct AddActivityView: View {
                             .font(.system(size: 16))
                             .foregroundColor(.white)
                     }
-                    
                 }
             }
             .padding(.bottom, 5)
@@ -164,16 +152,15 @@ struct AddActivityView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.white)
             CustomTextField(placeholder: "", text: $note, autocapitalization: .sentences, height: 80, isMultiline: true)
-                .padding ( .bottom, 20)
+                .padding(.bottom, 20)
             
-            
-            addButton
+            updateButton
         }
         .padding()
     }
     
     private func datePicker(title: String, date: Binding<Date>) -> some View {
-        HStack( spacing: 4) {
+        HStack(spacing: 4) {
             DatePicker(
                 title,
                 selection: date,
@@ -186,9 +173,9 @@ struct AddActivityView: View {
         }
     }
     
-    private var addButton: some View {
-        Button(action: addActivity) {
-            Text("Thêm hoạt động")
+    private var updateButton: some View {
+        Button(action: updateActivity) {
+            Text("Cập nhật hoạt động")
                 .foregroundColor(.white)
                 .padding()
                 .frame(maxWidth: .infinity)
@@ -199,37 +186,54 @@ struct AddActivityView: View {
         .padding(.horizontal)
     }
     
-    private func addActivity() {
-        guard !activityName.isEmpty else {
-            return
-        }
-        
-        let newActivity = TripActivity(
-            id: 0,
-            tripDayId: 0,
-            startTime: Formatter.apiDateTimeFormatter.string(from: startTime),
-            endTime: Formatter.apiDateTimeFormatter.string(from: endTime),
-            activity: activityName,
-            address: address,
-            estimatedCost: estimatedCost,
-            actualCost: actualCost,
-            note: note,
-            createdAt: "",
-            updatedAt: ""
-        )
-        
-        viewModel.addActivity(trip: trip, date: selectedDate, activity: newActivity) { result in
-            switch result {
-            case .success(let addedActivity):
-                print("✅ Đã thêm hoạt động: \(addedActivity.activity) vào ngày \(Formatter.apiDateFormatter.string(from: selectedDate))")
-                viewModel.fetchTripDays(completion: {
-                    print("📅 Đã làm mới danh sách hoạt động sau khi thêm")
-                }, forceRefresh: true)
-            case .failure(let error):
-                print("❌ Lỗi khi thêm hoạt động: \(error.localizedDescription)")
+    private func updateActivity() {
+            guard !activityName.isEmpty else {
+                return
+            }
+            
+            let updatedActivity = TripActivity(
+                id: activity.id,
+                tripDayId: activity.tripDayId,
+                startTime: Formatter.apiDateTimeFormatter.string(from: startTime),
+                endTime: Formatter.apiDateTimeFormatter.string(from: endTime),
+                activity: activityName,
+                address: address,
+                estimatedCost: estimatedCost,
+                actualCost: actualCost,
+                note: note,
+                createdAt: activity.createdAt,
+                updatedAt: activity.updatedAt
+            )
+            
+            viewModel.updateActivity(trip: trip, date: selectedDate, activity: updatedActivity) { result in
+                switch result {
+                case .success(let updatedActivity):
+                    print("✅ Đã cập nhật hoạt động: \(updatedActivity.activity)")
+                    DispatchQueue.main.async {
+                        self.showToast = true
+                        self.toastMessage = "Cập nhật hoạt động thành công"
+                        print("📢 Đặt toast trong EditActivityView: \(self.toastMessage)")
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.showToast = false
+                        self.toastMessage = ""
+                        print("📢 Ẩn toast trong EditActivityView")
+                        self.navManager.goBack()
+                    }
+                case .failure(let error):
+                    print("❌ Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        self.showToast = true
+                        self.toastMessage = "Lỗi khi cập nhật hoạt động"
+                        print("📢 Đặt toast trong EditActivityView: \(self.toastMessage)")
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.showToast = false
+                        self.toastMessage = ""
+                        print("📢 Ẩn toast trong EditActivityView")
+                        self.navManager.goBack()
+                    }
+                }
             }
         }
-        
-        navManager.goBack()
     }
-}

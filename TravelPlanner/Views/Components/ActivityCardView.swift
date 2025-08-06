@@ -62,11 +62,11 @@ struct ActivityCardView: View {
                     HStack {
                         Spacer()
                         VStack(spacing: 10) {
-                            Text("Giá:")
+                            Text("Chi phí uớc tính:")
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                                 .underline()
-                            Text(Formatter.formatCost(activity.estimatedCost))
+                            Text("\(Formatter.formatCost(activity.estimatedCost))")
                                 .font(.system(size: 14))
                                 .foregroundColor(.white)
                         }
@@ -74,11 +74,11 @@ struct ActivityCardView: View {
                         Divider()
                         Spacer()
                         VStack(spacing: 10) {
-                            Text("Chi tiêu thực tế")
+                            Text("Chi phí thực tế")
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                                 .underline()
-                            Text(Formatter.formatCost(activity.actualCost))
+                            Text("\(Formatter.formatCost(activity.actualCost))")
                                 .font(.system(size: 14))
                                 .foregroundColor(.white)
                         }
