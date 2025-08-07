@@ -41,7 +41,13 @@ class TripViewModel: ObservableObject {
               let token = UserDefaults.standard.string(forKey: "authToken") else {
             isLoading = false
             completion?()
+            
             return
+        }
+        if let authToken = UserDefaults.standard.string(forKey: "authToken") {
+            print("authToken: \(authToken)")
+        } else {
+            print("Không tìm thấy authToken.")
         }
 
         let request = NetworkManager.createRequest(url: url, method: "GET", token: token)
@@ -127,6 +133,7 @@ class TripViewModel: ObservableObject {
             completion(false)
             return
         }
+            
 
         let request = NetworkManager.createRequest(url: url, method: "DELETE", token: token)
         isLoading = true

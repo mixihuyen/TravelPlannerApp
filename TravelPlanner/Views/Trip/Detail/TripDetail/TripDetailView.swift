@@ -12,24 +12,24 @@ struct TripDetailView: View {
     
     
     var body: some View {
-            ZStack {
-                Color.background
-                    .ignoresSafeArea()
-                ScrollView {
-                    VStack {
-                        ZStack (alignment: .bottom) {
-                            //                            if let data = trip.image, let uiImage = UIImage(data: data) {
-                            //                                Image(uiImage: uiImage)
-                            //                                    .resizable()
-                            //                                    .scaledToFill()
-                            //                                    .frame(height: 200)
-                            //                                    .ignoresSafeArea()
-                            //                                    .mask(Rectangle()
-                            //                                        .fill(Color.retangleBackground)
-                            //                                        .frame(height: 200)
-                            //                                        .ignoresSafeArea())
-                            //
-                            //                            } else {
+        ZStack {
+            Color.background
+                .ignoresSafeArea()
+            ScrollView {
+                VStack {
+                    ZStack (alignment: .bottom) {
+//                        if let data = trip.image, let uiImage = UIImage(data: data) {
+//                            Image(uiImage: uiImage)
+//                                .resizable()
+//                                .scaledToFill()
+//                                .frame(height: 200)
+//                                .ignoresSafeArea()
+//                                .mask(Rectangle()
+//                                    .fill(Color.retangleBackground)
+//                                    .frame(height: 200)
+//                                    .ignoresSafeArea())
+//                            
+//                        } else {
                             Image("default_image")
                                 .resizable()
                                 .scaledToFill()
@@ -65,7 +65,7 @@ struct TripDetailView: View {
                             
                             
                         }
-                        .padding(.bottom, 40)
+                            .padding(.bottom, 40)
                         Spacer()
                         HStack {
                             VStack(spacing: 20) {
@@ -98,8 +98,8 @@ struct TripDetailView: View {
                 .padding(.bottom, 87)
                 .ignoresSafeArea()
             }
-
-        
-        
+            
+            
+            
+        }
     }
-}

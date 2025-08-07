@@ -4,22 +4,23 @@ struct ActivityView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var navManager: NavigationManager
     let date: Date
-    @State var activities: [TripActivity]
     let trip: TripModel
     @EnvironmentObject var viewModel: TripDetailViewModel
-    
-    init(date: Date, activities: [TripActivity], trip: TripModel) {
-        self.date = date
-        self._activities = State(initialValue: activities)
-        self.trip = trip
-    }
-    
+    @State private var tripDayId: Int?
+
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.background.ignoresSafeArea()
             
             ScrollView {
-                HStack{
+                HStack {
                     Button(action: {
                         navManager.goBack()
                     }) {
@@ -38,11 +39,16 @@ struct ActivityView: View {
                 }
                 .padding(.top, 15)
                 .padding(.horizontal)
+                
                 VStack {
                     HStack {
                         Spacer()
                         Button(action: {
-                            navManager.go(to: .addActivity(date: date, trip: trip))
+                            if let tripDayId = tripDayId {
+                                navManager.go(to: .addActivity(date: date, trip: trip, tripDayId: tripDayId))
+                            } else {
+                                viewModel.showToast(message: "Không thể thêm hoạt động: Không tìm thấy ngày chuyến đi")
+                            }
                         }) {
                             Image(systemName: "text.badge.plus")
                                 .font(.system(size: 36))
@@ -66,6 +72,7 @@ struct ActivityView: View {
                     .frame(height: 140)
                     
                     HStack {
+                        let activities = viewModel.activities(for: date)
                         if activities.isEmpty {
                             VStack(spacing: 8) {
                                 Image("empty")
@@ -73,17 +80,22 @@ struct ActivityView: View {
                                     .frame(width: 100, height: 100)
                                     .foregroundColor(.gray)
                                 
-                                Text("Chưa có hoạt động nào")
+                                Text("Chưa có hoạt động nào cho ngày \(dateFormatter.string(from: date))")
                                     .foregroundColor(.gray)
                                     .font(.subheadline)
+                                    .multilineTextAlignment(.center)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .padding(.top, 100)
                         } else {
                             VStack(spacing: 16) {
-                                ForEach(activities) { activity in
+                                ForEach(activities, id: \.id) { activity in
                                     Button(action: {
-                                        navManager.go(to: .editActivity(date: date,activity: activity, trip: trip ))
+                                        if let tripDayId = tripDayId {
+                                            navManager.go(to: .editActivity(date: date, activity: activity, trip: trip, tripDayId: tripDayId))
+                                        } else {
+                                            viewModel.showToast(message: "Không thể chỉnh sửa hoạt động: Không tìm thấy ngày chuyến đi")
+                                        }
                                     }) {
                                         ActivityCardView(activity: activity)
                                     }
@@ -102,18 +114,25 @@ struct ActivityView: View {
                 },
                 alignment: .bottom
             )
-            
         }
-
-        
         .navigationBarBackButtonHidden(true)
         .onAppear {
             print("📋 Kiểm tra TripDetailViewModel trong ActivityView: \(String(describing: viewModel))")
-            viewModel.fetchTripDays(completion: {
-                let newActivities = viewModel.activities(for: date)
-                print("📋 Danh sách hoạt động khi view xuất hiện: \(newActivities.map { "\($0.activity) (ID: \($0.id))" })")
-                self.activities = newActivities
-            }, forceRefresh: true)
+            print("📅 Ngày được chọn: \(dateFormatter.string(from: date))")
+            viewModel.clearCache()
+            viewModel.fetchTripDays(completion: { // Fix: Use 'completion' label
+                viewModel.getTripDayId(for: date) { tripDayId in
+                    self.tripDayId = tripDayId
+                    if tripDayId == nil {
+                        print("❌ Không tìm thấy tripDayId cho ngày: \(dateFormatter.string(from: date))")
+                        viewModel.showToast(message: "Không tìm thấy ngày chuyến đi")
+                    } else {
+                        print("✅ Đã lấy tripDayId: \(tripDayId!) cho ngày: \(dateFormatter.string(from: date))")
+                        let activities = viewModel.activities(for: date)
+                        print("📋 Hoạt động cho ngày \(dateFormatter.string(from: date)): \(activities.map { "\($0.activity) (ID: \($0.id))" })")
+                    }
+                }
+            }, forceRefresh: true) 
         }
     }
 }

@@ -13,6 +13,7 @@ struct TripActivity: Codable, Identifiable, Hashable {
     let note: String
     let createdAt: String
     let updatedAt: String
+    let images: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -26,6 +27,7 @@ struct TripActivity: Codable, Identifiable, Hashable {
         case note
         case createdAt
         case updatedAt
+        case images
     }
 
     // Triển khai Hashable
@@ -40,7 +42,7 @@ struct TripActivity: Codable, Identifiable, Hashable {
 
 extension TripActivity {
     func toPieEntry() -> PieChartDataEntry? {
-        guard actualCost > 0 else { return nil } 
+        guard actualCost > 0 else { return nil }
         return PieChartDataEntry(value: actualCost, label: activity)
     }
 }
@@ -62,7 +64,13 @@ struct TripActivityUpdateResponse: Codable {
         }
     }
 }
+
 struct DeleteActivityResponse: Codable {
     let success: Bool
     let message: String?
+}
+
+struct TripActivityListResponse: Codable {
+    let success: Bool
+    let data: [TripActivity]?
 }

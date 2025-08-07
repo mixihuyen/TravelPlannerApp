@@ -6,6 +6,7 @@ struct EditActivityView: View {
     let selectedDate: Date
     let trip: TripModel
     let activity: TripActivity
+    let tripDayId: Int
     @EnvironmentObject var viewModel: TripDetailViewModel
     @State private var activityName: String
     @State private var address: String
@@ -14,13 +15,13 @@ struct EditActivityView: View {
     @State private var estimatedCost: Double
     @State private var actualCost: Double
     @State private var note: String
-    @State private var showToast: Bool = false
-    @State private var toastMessage: String = ""
+    @State private var showDeleteAlert = false
     
-    init(selectedDate: Date, trip: TripModel, activity: TripActivity) {
+    init(selectedDate: Date, trip: TripModel, activity: TripActivity, tripDayId: Int) {
         self.selectedDate = selectedDate
         self.trip = trip
         self.activity = activity
+        self.tripDayId = tripDayId
         self._activityName = State(initialValue: activity.activity)
         self._address = State(initialValue: activity.address)
         self._startTime = State(initialValue: Formatter.apiDateTimeFormatter.date(from: activity.startTime) ?? selectedDate)
@@ -47,6 +48,12 @@ struct EditActivityView: View {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
         )
+        .alert("Xoá hoạt động?", isPresented: $showDeleteAlert) {
+            Button("Xoá", role: .destructive, action: deleteActivity)
+            Button("Huỷ", role: .cancel) {}
+        } message: {
+            Text("Bạn có chắc chắn muốn xoá hoạt động này?")
+        }
     }
     
     private var headerView: some View {
@@ -73,17 +80,17 @@ struct EditActivityView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.white)
                 .padding(.bottom, 5)
-            VStack(alignment: .leading){
+            VStack(alignment: .leading) {
                 Text("Tên hoạt động")
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                 CustomTextField(placeholder: "", text: $activityName, autocapitalization: .sentences, showIconImage: true, imageName: "activity")
-                .padding(.bottom, 10)
+                    .padding(.bottom, 10)
                 Text("Địa điểm")
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                 CustomTextField(placeholder: "", text: $address, autocapitalization: .sentences, showIconImage: true,
-                              imageName: "address", height: 80, isMultiline: true)
+                               imageName: "address", height: 80, isMultiline: true)
             }
             .padding(.horizontal)
             .padding(.bottom, 5)
@@ -97,7 +104,7 @@ struct EditActivityView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.white)
                 .padding(.bottom, 5)
-            VStack{
+            VStack {
                 datePicker(title: "Thời gian bắt đầu", date: $startTime)
                 datePicker(title: "Thời gian kết thúc", date: $endTime)
             }
@@ -113,12 +120,12 @@ struct EditActivityView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.white)
                 .padding(.bottom, 5)
-            HStack{
-                VStack(alignment: .leading){
+            HStack {
+                VStack(alignment: .leading) {
                     Text("Chi phí dự kiến")
                         .font(.system(size: 16))
                         .foregroundColor(.white)
-                    HStack{
+                    HStack {
                         CustomNumberTextField(value: $estimatedCost)
                         Text("đ")
                             .font(.system(size: 16))
@@ -130,11 +137,11 @@ struct EditActivityView: View {
                     .frame(width: 1)
                     .background(Color.Button)
                 Spacer()
-                VStack(alignment: .leading){
+                VStack(alignment: .leading) {
                     Text("Chi phí thực tế")
                         .font(.system(size: 16))
                         .foregroundColor(.white)
-                    HStack{
+                    HStack {
                         CustomNumberTextField(value: $actualCost)
                         Text("đ")
                             .font(.system(size: 16))
@@ -155,6 +162,17 @@ struct EditActivityView: View {
                 .padding(.bottom, 20)
             
             updateButton
+            Button(role: .destructive, action: {
+                showDeleteAlert = true
+            }) {
+                Text("Xoá hoạt động")
+                    .foregroundColor(.red)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.white.opacity(0.1))
+                    .cornerRadius(25)
+            }
+            .padding(.horizontal)
         }
         .padding()
     }
@@ -186,54 +204,50 @@ struct EditActivityView: View {
         .padding(.horizontal)
     }
     
-    private func updateActivity() {
-            guard !activityName.isEmpty else {
-                return
+    private func deleteActivity() {
+        viewModel.deleteActivity(activityId: activity.id, tripDayId: tripDayId) {
+            print("📋 Đã xóa hoạt động và làm mới danh sách")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.navManager.goBack()
             }
-            
-            let updatedActivity = TripActivity(
-                id: activity.id,
-                tripDayId: activity.tripDayId,
-                startTime: Formatter.apiDateTimeFormatter.string(from: startTime),
-                endTime: Formatter.apiDateTimeFormatter.string(from: endTime),
-                activity: activityName,
-                address: address,
-                estimatedCost: estimatedCost,
-                actualCost: actualCost,
-                note: note,
-                createdAt: activity.createdAt,
-                updatedAt: activity.updatedAt
-            )
-            
-            viewModel.updateActivity(trip: trip, date: selectedDate, activity: updatedActivity) { result in
-                switch result {
-                case .success(let updatedActivity):
-                    print("✅ Đã cập nhật hoạt động: \(updatedActivity.activity)")
-                    DispatchQueue.main.async {
-                        self.showToast = true
-                        self.toastMessage = "Cập nhật hoạt động thành công"
-                        print("📢 Đặt toast trong EditActivityView: \(self.toastMessage)")
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        self.showToast = false
-                        self.toastMessage = ""
-                        print("📢 Ẩn toast trong EditActivityView")
-                        self.navManager.goBack()
-                    }
-                case .failure(let error):
-                    print("❌ Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
-                    DispatchQueue.main.async {
-                        self.showToast = true
-                        self.toastMessage = "Lỗi khi cập nhật hoạt động"
-                        print("📢 Đặt toast trong EditActivityView: \(self.toastMessage)")
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        self.showToast = false
-                        self.toastMessage = ""
-                        print("📢 Ẩn toast trong EditActivityView")
-                        self.navManager.goBack()
-                    }
+        }
+    }
+    
+    private func updateActivity() {
+        guard !activityName.isEmpty else {
+            viewModel.showToast(message: "Vui lòng nhập tên hoạt động")
+            return
+        }
+        
+        let updatedActivity = TripActivity(
+            id: activity.id,
+            tripDayId: tripDayId,
+            startTime: Formatter.apiDateTimeFormatter.string(from: startTime),
+            endTime: Formatter.apiDateTimeFormatter.string(from: endTime),
+            activity: activityName,
+            address: address,
+            estimatedCost: estimatedCost,
+            actualCost: actualCost,
+            note: note,
+            createdAt: activity.createdAt,
+            updatedAt: activity.updatedAt,
+            images: activity.images ?? []
+        )
+        viewModel.clearCache()
+        
+        viewModel.updateActivity(trip: trip, date: selectedDate, activity: updatedActivity) { result in
+            switch result {
+            case .success(let updatedActivity):
+                print("✅ Đã cập nhật hoạt động: \(updatedActivity.activity)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.navManager.goBack()
+                }
+            case .failure(let error):
+                print("❌ Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    navManager.goBack()
                 }
             }
         }
     }
+}

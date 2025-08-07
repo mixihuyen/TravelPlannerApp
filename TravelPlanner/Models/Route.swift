@@ -14,6 +14,6 @@ enum Route: Hashable {
     case createTrip
     case tabBarView(trip: TripModel)
     case activity(date: Date, activities: [TripActivity], trip: TripModel)
-    case addActivity(date: Date, trip: TripModel)
-    case editActivity(date: Date, activity: TripActivity, trip: TripModel)
+    case addActivity(date: Date, trip: TripModel, tripDayId: Int)
+    case editActivity(date: Date, activity: TripActivity, trip: TripModel, tripDayId: Int)
 }

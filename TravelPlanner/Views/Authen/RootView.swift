@@ -46,17 +46,16 @@ struct RootView: View {
                     case .tabBarView(let trip):
                         TabBar(trip: trip)
                     case .activity(let date, let activities, let trip):
-                        ActivityView(date: date, activities: activities, trip: trip)
+                        ActivityView(date: date, trip: trip)
                             .environmentObject(TripDetailViewModel(trip: trip))
-                    case .addActivity(let date, let trip):
-                        AddActivityView(selectedDate: date, trip: trip)
+                    case .addActivity(let date, let trip, let tripDayId):
+                        AddActivityView(selectedDate: date, trip: trip, tripDayId: tripDayId)
                             .environmentObject(TripDetailViewModel(trip: trip))
-                    case .editActivity(let date, let activity, let trip):
-                        EditActivityView(selectedDate: date,  trip: trip, activity: activity)
+                    case .editActivity(let date, let activity, let trip, let tripDayId):
+                        EditActivityView(selectedDate: date, trip: trip, activity: activity, tripDayId: tripDayId)
                             .environmentObject(TripDetailViewModel(trip: trip))
                     }
                 }
-                
             }
         }
         .environmentObject(viewModel)
@@ -64,4 +63,3 @@ struct RootView: View {
         .environmentObject(authManager)
     }
 }
-
