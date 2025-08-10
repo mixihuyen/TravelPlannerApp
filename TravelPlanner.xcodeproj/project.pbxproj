@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		26302ACD2E45DC36002DAAB1 /* Cloudinary in Frameworks */ = {isa = PBXBuildFile; productRef = 26302ACC2E45DC36002DAAB1 /* Cloudinary */; };
+		26302AD82E466AD6002DAAB1 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 26302AD72E466AD6002DAAB1 /* Starscream */; };
+		26302ADB2E4715E6002DAAB1 /* Cache in Frameworks */ = {isa = PBXBuildFile; productRef = 26302ADA2E4715E6002DAAB1 /* Cache */; };
+		26302ADE2E476168002DAAB1 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 26302ADD2E476168002DAAB1 /* SocketIO */; };
 		2649790E2E166E4E002A4B7B /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 2649790D2E166E45002A4B7B /* .gitignore */; };
 		2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */ = {isa = PBXBuildFile; productRef = 2649793E2E193554002A4B7B /* SwiftUICharts */; };
 		264979452E193940002A4B7B /* DGCharts in Frameworks */ = {isa = PBXBuildFile; productRef = 264979442E193940002A4B7B /* DGCharts */; };
@@ -75,9 +79,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				264979452E193940002A4B7B /* DGCharts in Frameworks */,
+				26302ADE2E476168002DAAB1 /* SocketIO in Frameworks */,
+				26302ADB2E4715E6002DAAB1 /* Cache in Frameworks */,
 				26DB83382E29477100BF6F0F /* WaterfallGrid in Frameworks */,
+				26302ACD2E45DC36002DAAB1 /* Cloudinary in Frameworks */,
 				2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */,
 				26DB83272E27AEA100BF6F0F /* Lottie in Frameworks */,
+				26302AD82E466AD6002DAAB1 /* Starscream in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -143,6 +151,10 @@
 				264979442E193940002A4B7B /* DGCharts */,
 				26DB83262E27AEA100BF6F0F /* Lottie */,
 				26DB83372E29477100BF6F0F /* WaterfallGrid */,
+				26302ACC2E45DC36002DAAB1 /* Cloudinary */,
+				26302AD72E466AD6002DAAB1 /* Starscream */,
+				26302ADA2E4715E6002DAAB1 /* Cache */,
+				26302ADD2E476168002DAAB1 /* SocketIO */,
 			);
 			productName = TravelPlanner;
 			productReference = 264978602E13B439002A4B7B /* TravelPlanner.app */;
@@ -231,6 +243,10 @@
 				264979432E193940002A4B7B /* XCRemoteSwiftPackageReference "Charts" */,
 				26DB83252E27AEA100BF6F0F /* XCRemoteSwiftPackageReference "lottie-ios" */,
 				26DB83362E29477100BF6F0F /* XCRemoteSwiftPackageReference "WaterfallGrid" */,
+				26302ACB2E45DC36002DAAB1 /* XCRemoteSwiftPackageReference "cloudinary_ios" */,
+				26302AD62E466AD6002DAAB1 /* XCRemoteSwiftPackageReference "Starscream" */,
+				26302AD92E4715E6002DAAB1 /* XCRemoteSwiftPackageReference "Cache" */,
+				26302ADC2E476168002DAAB1 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 264978612E13B439002A4B7B /* Products */;
@@ -594,6 +610,38 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		26302ACB2E45DC36002DAAB1 /* XCRemoteSwiftPackageReference "cloudinary_ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/cloudinary/cloudinary_ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.2.2;
+			};
+		};
+		26302AD62E466AD6002DAAB1 /* XCRemoteSwiftPackageReference "Starscream" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/daltoniam/Starscream.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.0.8;
+			};
+		};
+		26302AD92E4715E6002DAAB1 /* XCRemoteSwiftPackageReference "Cache" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/hyperoslo/Cache.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.4.0;
+			};
+		};
+		26302ADC2E476168002DAAB1 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		2649793D2E193554002A4B7B /* XCRemoteSwiftPackageReference "ChartView" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/AppPear/ChartView";
@@ -629,6 +677,26 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		26302ACC2E45DC36002DAAB1 /* Cloudinary */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 26302ACB2E45DC36002DAAB1 /* XCRemoteSwiftPackageReference "cloudinary_ios" */;
+			productName = Cloudinary;
+		};
+		26302AD72E466AD6002DAAB1 /* Starscream */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 26302AD62E466AD6002DAAB1 /* XCRemoteSwiftPackageReference "Starscream" */;
+			productName = Starscream;
+		};
+		26302ADA2E4715E6002DAAB1 /* Cache */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 26302AD92E4715E6002DAAB1 /* XCRemoteSwiftPackageReference "Cache" */;
+			productName = Cache;
+		};
+		26302ADD2E476168002DAAB1 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 26302ADC2E476168002DAAB1 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
 		2649793E2E193554002A4B7B /* SwiftUICharts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2649793D2E193554002A4B7B /* XCRemoteSwiftPackageReference "ChartView" */;

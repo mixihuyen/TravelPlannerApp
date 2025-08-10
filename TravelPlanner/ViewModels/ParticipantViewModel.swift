@@ -147,31 +147,31 @@ class ParticipantViewModel: ObservableObject {
                     // Tìm userId của participant bị xóa
                     if let participant = self.participants.first(where: { $0.id == tripParticipantId }) {
                         let userId = participant.user.id
-                        print("👥 Removing participant with userId=\(userId) (tripParticipantId=\(tripParticipantId))")
+                        //print("👥 Removing participant with userId=\(userId) (tripParticipantId=\(tripParticipantId))")
                         // Xóa participant khỏi danh sách cục bộ
                         self.participants.removeAll { $0.id == tripParticipantId }
                         self.saveToCache(participants: self.participants, tripId: tripId)
-                        print("👥 Updated participants count: \(self.participants.count)")
+                        //print("👥 Updated participants count: \(self.participants.count)")
                         self.showToast(message: response.message ?? "Đã xóa thành viên thành công!")
                         
                         // Gọi unassignItemsForUser để bỏ gán các vật dụng
                         packingListViewModel?.unassignItemsForUser(userId: userId) {
-                            print("✅ Hoàn tất bỏ gán vật dụng cho userId=\(userId)")
+                            //print("✅ Hoàn tất bỏ gán vật dụng cho userId=\(userId)")
                             // Xóa cache và làm mới packing list
                             UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
-                            print("🗑️ Đã xóa cache packing list cho tripId=\(tripId)")
+                            //print("🗑️ Đã xóa cache packing list cho tripId=\(tripId)")
                             packingListViewModel?.fetchPackingList {
-                                print("✅ Đã làm mới packing list từ API sau khi xóa participant")
+                               // print("✅ Đã làm mới packing list từ API sau khi xóa participant")
                                 completionHandler?()
                             }
                         }
                     } else {
-                        print("⚠️ Participant with tripParticipantId=\(tripParticipantId) not found")
+                        //print("⚠️ Participant with tripParticipantId=\(tripParticipantId) not found")
                         self.showToast(message: "Không tìm thấy thành viên để xóa")
                         completionHandler?()
                     }
                 } else {
-                    print("❌ Failed to remove participant: \(response.message ?? "Unknown error")")
+                    //print("❌ Failed to remove participant: \(response.message ?? "Unknown error")")
                     self.showToast(message: response.message ?? "Lỗi khi xóa thành viên")
                     completionHandler?()
                 }

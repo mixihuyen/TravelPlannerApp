@@ -120,19 +120,18 @@ struct ActivityView: View {
             print("📋 Kiểm tra TripDetailViewModel trong ActivityView: \(String(describing: viewModel))")
             print("📅 Ngày được chọn: \(dateFormatter.string(from: date))")
             viewModel.clearCache()
-            viewModel.fetchTripDays(completion: { // Fix: Use 'completion' label
-                viewModel.getTripDayId(for: date) { tripDayId in
-                    self.tripDayId = tripDayId
-                    if tripDayId == nil {
-                        print("❌ Không tìm thấy tripDayId cho ngày: \(dateFormatter.string(from: date))")
-                        viewModel.showToast(message: "Không tìm thấy ngày chuyến đi")
-                    } else {
-                        print("✅ Đã lấy tripDayId: \(tripDayId!) cho ngày: \(dateFormatter.string(from: date))")
-                        let activities = viewModel.activities(for: date)
-                        print("📋 Hoạt động cho ngày \(dateFormatter.string(from: date)): \(activities.map { "\($0.activity) (ID: \($0.id))" })")
-                    }
+            viewModel.fetchTripDays(forceRefresh: true)
+            viewModel.getTripDayId(for: date) { tripDayId in
+                self.tripDayId = tripDayId
+                if tripDayId == nil {
+                    print("❌ Không tìm thấy tripDayId cho ngày: \(dateFormatter.string(from: date))")
+                    viewModel.showToast(message: "Không tìm thấy ngày chuyến đi")
+                } else {
+                    print("✅ Đã lấy tripDayId: \(tripDayId!) cho ngày: \(dateFormatter.string(from: date))")
+                    let activities = viewModel.activities(for: date)
+                    //print("📋 Hoạt động cho ngày \(dateFormatter.string(from: date)): \(activities.map { "\($0.activity) (ID: \($0.id))" })")
                 }
-            }, forceRefresh: true) 
+            }
         }
     }
 }

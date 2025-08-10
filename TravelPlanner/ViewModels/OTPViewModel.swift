@@ -70,13 +70,13 @@ class OTPViewModel: ObservableObject {
     }
     func verifyOTP(code: String) {
         isLoading = true
-        AuthService.verifyOTP(email: email, code: code) { [weak self] success, message, token, firstName, lastName, username, shouldGoToHome in guard let self = self else { return }
+        AuthService.verifyOTP(email: email, code: code) { [weak self] success, message, token, firstName, lastName, username,userId, shouldGoToHome in guard let self = self else { return }
             self.isLoading = false
             
             if success {
                 print("✅ OTP hợp lệ")
                 if let token = token {
-                    self.authManager?.signIn(token: token, firstName: firstName, lastName: lastName, username: username, email: self.email)
+                    self.authManager?.signIn(token: token, firstName: firstName, lastName: lastName, username: username, email: self.email, userId: userId)
                 }
                 
                 if shouldGoToHome {

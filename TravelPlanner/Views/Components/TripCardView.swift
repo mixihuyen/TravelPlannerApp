@@ -6,33 +6,45 @@ struct TripCardView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack{
-//                if let data = trip.image, let uiImage = UIImage(data: data) {
-//                    Image(uiImage: uiImage)
-//                        .resizable()
-//                        .scaledToFill()
-//                        .frame(width: geo.size.width, height: 106)
-//                        .mask(
-//                            TripCard()
-//                                .frame(width: geo.size.width, height: 106)
-//                        )
-//                    
-//                } else {
-                    Image("default_image")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geo.size.width, height: 106)
-                        .mask(
-                            TripCard()
-                                .frame(width: geo.size.width, height: 106)
-                        )
-                //}
+                if let urlString = trip.imageCoverUrl, let url = URL(string: urlString) {
+                                    AsyncImage(url: url) { image in
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: geo.size.width, height: 106)
+                                            .mask(
+                                                TripCard()
+                                                    .frame(width: geo.size.width, height: 106)
+                                            )
+                                    } placeholder: {
+                                        Image("default_image")
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: geo.size.width, height: 106)
+                                            .mask(
+                                                TripCard()
+                                                    .frame(width: geo.size.width, height: 106)
+                                            )
+                                    }
+                                } else {
+                                    Image("default_image")
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: geo.size.width, height: 106)
+                                        .mask(
+                                            TripCard()
+                                                .frame(width: geo.size.width, height: 106)
+                                        )
+                                }
                 
                 TripCard()
                     .fill(Color.tripBackground)
                     .frame(width: geo.size.width, height: 106)
                 HStack {
                     VStack(alignment: .leading) {
-                        Text(trip.tripParticipants?.first?.role ?? "Unknown")
+                        let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+                        let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+                        Text(userRole)
                             .font(.caption)
                             .foregroundColor(Color.pink)
                             .padding(.horizontal, 8)

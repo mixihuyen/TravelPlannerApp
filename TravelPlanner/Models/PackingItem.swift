@@ -1,4 +1,4 @@
-struct PackingItem: Identifiable, Codable {
+struct PackingItem: Identifiable, Codable, Equatable {
     let id: Int
     var name: String
     var isPacked: Bool
@@ -36,6 +36,15 @@ struct PackingItem: Identifiable, Codable {
         try container.encodeIfPresent(userId, forKey: .userId)
         try container.encodeIfPresent(note, forKey: .note)
     }
+    static func == (lhs: PackingItem, rhs: PackingItem) -> Bool {
+            return lhs.id == rhs.id &&
+                   lhs.name == rhs.name &&
+                   lhs.isPacked == rhs.isPacked &&
+                   lhs.isShared == rhs.isShared &&
+                   lhs.userId == rhs.userId &&
+                   lhs.quantity == rhs.quantity &&
+                   lhs.note == rhs.note
+        }
 }
 
 struct PackingListResponse: Codable {

@@ -20,11 +20,15 @@ class NetworkManager {
                     throw URLError(.badServerResponse)
                 }
                 if let jsonString = String(data: result.data, encoding: .utf8) {
-                    print("JSON response: \(jsonString)")
+                    //print("JSON response: \(jsonString)") // Log JSON để debug
                 }
                 return result.data
             }
-            .decode(type: T.self, decoder: JSONDecoder())
+            .decode(type: T.self, decoder: {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601 
+                return decoder
+            }())
             .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }

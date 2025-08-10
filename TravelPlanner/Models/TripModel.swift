@@ -6,6 +6,9 @@ struct TripModel: Identifiable, Codable, Hashable {
     let description: String?
     let startDate: String
     let endDate: String
+    let address: String?
+    let imageCoverUrl: String?
+    let isPublic: Bool
     let status: String
     let createdByUserId: Int
     let createdAt: String
@@ -16,6 +19,9 @@ struct TripModel: Identifiable, Codable, Hashable {
         case id, name, description
         case startDate = "start_date"
         case endDate = "end_date"
+        case address
+        case imageCoverUrl = "image_cover_url"
+        case isPublic = "public"
         case status
         case createdByUserId = "created_by_user_id"
         case createdAt, updatedAt
@@ -49,6 +55,9 @@ struct TripRequest: Codable {
     let description: String?
     let startDate: String
     let endDate: String
+    let address: String?
+    let imageCoverUrl: String?
+    let isPublic: Bool
     let status: String
     let createdByUserId: Int
 
@@ -56,6 +65,9 @@ struct TripRequest: Codable {
         case name, description, status
         case startDate = "start_date"
         case endDate = "end_date"
+        case address
+        case imageCoverUrl = "image_cover_url"
+        case isPublic = "public"
         case createdByUserId = "created_by_user_id"
     }
 }

@@ -1,7 +1,11 @@
-
 import Foundation
 import Combine
 import SwiftUI
+
+struct CachedTripDays: Codable {
+    let timestamp: Date
+    let data: [TripDay]
+}
 
 class TripDetailViewModel: ObservableObject {
     let trip: TripModel
@@ -11,7 +15,7 @@ class TripDetailViewModel: ObservableObject {
     @Published var toastMessage: String? = nil
     @Published var showToast: Bool = false
     @Published var refreshTrigger: UUID = UUID()
-
+    private var webSocketManager: WebSocketManager?
     private var cancellables = Set<AnyCancellable>()
     private let networkManager = NetworkManager()
     private let dateFormatter: DateFormatter = {
@@ -20,19 +24,221 @@ class TripDetailViewModel: ObservableObject {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
+    private let cacheExpirationSeconds: TimeInterval = 1800 // 30 phút
 
     init(trip: TripModel) {
-        self.trip = trip
-        print("🚀 Khởi tạo TripDetailViewModel cho tripId=\(trip.id)")
-        loadFromCache()
-        fetchTripDays(forceRefresh: true) // Làm mới ngay khi khởi tạo
+            self.trip = trip
+            print("🚀 Khởi tạo TripDetailViewModel cho tripId=\(trip.id), instance: \(Unmanaged.passUnretained(self).toOpaque())")
+            if let cachedTripDays = loadFromCache() {
+                self.tripDaysData = cachedTripDays
+                self.tripDays = cachedTripDays.compactMap { dateFormatter.date(from: $0.day) }
+                self.objectWillChange.send()
+                self.refreshTrigger = UUID()
+            } else {
+                fetchTripDays(forceRefresh: true)
+            }
+        connectWebSocket()
+        }
+    
+    deinit {
+        disconnectWebSocket()
+        cancellables.removeAll()
+        print("🗑️ TripDetailViewModel deinit, instance: \(Unmanaged.passUnretained(self).toOpaque())")
+    }
+
+    func connectWebSocket() {
+        guard webSocketManager == nil || webSocketManager?.socket?.status != .connected else {
+            print("⚠️ WebSocket đã kết nối, bỏ qua")
+            return
+        }
+        
+        WebSocketService.shared.connect(tripId: trip.id)
+            webSocketManager = WebSocketService.shared.manager(for: trip.id)
+            webSocketManager?.messagePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] message in
+                guard let self else { return }
+                switch message {
+                case .connected:
+                    print("✅ WebSocket connected")
+                    showToast(message: "Đã kết nối thời gian thực")
+                case .disconnected(let reason, let code):
+                    print("❌ WebSocket disconnected: \(reason) (code: \(code))")
+                    showToast(message: "Mất kết nối thời gian thực")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        self.connectWebSocket()
+                    }
+                case .message(let json):
+                    handleWebSocketMessage(json)
+                case .error(let error):
+                    print("❌ WebSocket error: \(error?.localizedDescription ?? "Unknown error")")
+                    showToast(message: "Lỗi kết nối thời gian thực")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        self.connectWebSocket()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    func disconnectWebSocket() {
+        WebSocketService.shared.disconnect(tripId: trip.id)
+        webSocketManager = nil
+    }
+
+        
+
+     func handleWebSocketMessage(_ json: [String: Any]) {
+        guard let eventType = json["event"] as? String else {
+            print("❌ Không tìm thấy eventType trong WebSocket message: \(json)")
+            return
+        }
+        
+        switch eventType {
+        case "newActivity":
+            if let activityData = json["activity"] as? [String: Any],
+               let activity = parseActivity(from: activityData) {
+                print("📥 New activity received: \(activity.activity)")
+                addActivityToTripDays(activity)
+                saveToCache(tripDays: tripDaysData)
+                objectWillChange.send()
+                refreshTrigger = UUID()
+                showToast(message: "Hoạt động mới: \(activity.activity)")
+            }
+        case "updateActivity":
+            if let activityData = json["data"] as? [String: Any],
+               let activity = parseActivity(from: activityData) {
+                print("📥 Updated activity received: \(activity.activity)")
+                updateActivityInTripDays(activity)
+                saveToCache(tripDays: tripDaysData)
+                objectWillChange.send()
+                refreshTrigger = UUID()
+                showToast(message: "Đã cập nhật: \(activity.activity)")
+            }
+        case "deleteActivity":
+            if let activityId = json["activityId"] as? Int,
+               let tripDayId = json["tripDayId"] as? Int {
+                print("📥 Delete activity received: activityId=\(activityId), tripDayId=\(tripDayId)")
+                removeActivityFromTripDays(activityId: activityId, tripDayId: tripDayId)
+                saveToCache(tripDays: tripDaysData)
+                objectWillChange.send()
+                refreshTrigger = UUID()
+                showToast(message: "Đã xóa hoạt động")
+            }
+        case "newParticipant":
+            if let participantData = json["data"] as? [String: Any] {
+                print("📥 New participant: \(participantData)")
+                showToast(message: "Thành viên mới tham gia chuyến đi")
+                // TODO: Thêm logic xử lý thành viên mới nếu cần
+            }
+        case "updateParticipant":
+            if let participantData = json["data"] as? [String: Any] {
+                print("📥 Updated participant: \(participantData)")
+                showToast(message: "Quyền thành viên đã được cập nhật")
+                // TODO: Thêm logic xử lý cập nhật thành viên nếu cần
+            }
+        case "deleteParticipant":
+            if let participantData = json["data"] as? [String: Any] {
+                print("📥 Deleted participant: \(participantData)")
+                showToast(message: "Thành viên đã rời hoặc bị xóa khỏi chuyến đi")
+                // TODO: Thêm logic xử lý xóa thành viên nếu cần
+            }
+        default:
+            print("⚠️ Sự kiện WebSocket không xác định: \(eventType)")
+        }
+    }
+
+    private func parseActivity(from data: [String: Any]) -> TripActivity? {
+        guard let id = data["id"] as? Int,
+              let activityName = data["activity"] as? String,
+              let tripDayId = data["trip_day_id"] as? Int else {
+            print("❌ Lỗi khi parse activity: Missing required fields in \(data)")
+            return nil
+        }
+        let estimatedCost = (data["estimated_cost"] as? Double) ?? (data["estimated_cost"] as? Int).map(Double.init) ?? 0.0
+        let actualCost = (data["actual_cost"] as? Double) ?? (data["actual_cost"] as? Int).map(Double.init) ?? 0.0
+        return TripActivity(
+            id: id,
+            tripDayId: tripDayId,
+            startTime: data["start_time"] as? String ?? "",
+            endTime: data["end_time"] as? String ?? "",
+            activity: activityName,
+            address: data["address"] as? String ?? "",
+            estimatedCost: estimatedCost,
+            actualCost: actualCost,
+            note: data["note"] as? String ?? "",
+            createdAt: data["created_at"] as? String ?? "",
+            updatedAt: data["updated_at"] as? String ?? "",
+            images: data["images"] as? [String] ?? nil
+        )
+    }
+    
+    
+    
+
+    private func addActivityToTripDays(_ activity: TripActivity) {
+        clearCache()
+        guard let index = tripDaysData.firstIndex(where: { $0.id == activity.tripDayId }) else {
+            print("❌ Không tìm thấy trip day với id: \(activity.tripDayId), fetching lại...")
+            fetchTripDays(forceRefresh: true)
+            return
+        }
+        if tripDaysData[index].activities.contains(where: { $0.id == activity.id }) {
+            print("⚠️ Hoạt động đã tồn tại: \(activity.activity)")
+            return
+        }
+        tripDaysData[index].activities.append(activity)
+        updateTripDays()
+        print("📅 Đã thêm hoạt động vào trip day \(tripDaysData[index].day): \(activity.activity)")
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+            self.refreshTrigger = UUID()
+        }
+    }
+
+    private func updateActivityInTripDays(_ activity: TripActivity) {
+        clearCache()
+        guard let dayIndex = tripDaysData.firstIndex(where: { $0.id == activity.tripDayId }),
+              let activityIndex = tripDaysData[dayIndex].activities.firstIndex(where: { $0.id == activity.id }) else {
+            print("❌ Không tìm thấy trip day hoặc activity để cập nhật, fetching lại...")
+            fetchTripDays(forceRefresh: true)
+            return
+        }
+        tripDaysData[dayIndex].activities[activityIndex] = activity
+        updateTripDays()
+        print("📅 Đã cập nhật hoạt động trong trip day \(tripDaysData[dayIndex].day): \(activity.activity)")
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+            self.refreshTrigger = UUID()
+        }
+    }
+
+    private func removeActivityFromTripDays(activityId: Int, tripDayId: Int) {
+        clearCache()
+        guard let dayIndex = tripDaysData.firstIndex(where: { $0.id == tripDayId }) else {
+            print("❌ Không tìm thấy trip day với id: \(tripDayId), fetching lại...")
+            fetchTripDays(forceRefresh: true)
+            return
+        }
+        tripDaysData[dayIndex].activities.removeAll { $0.id == activityId }
+        updateTripDays()
+        print("📅 Đã xóa hoạt động \(activityId) khỏi trip day \(tripDayId)")
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+            self.refreshTrigger = UUID()
+        }
+    }
+
+    private func updateTripDays() {
+        tripDays = tripDaysData.compactMap { dateFormatter.date(from: $0.day) }
+        print("📅 Đã cập nhật tripDays: \(tripDays.map { dateFormatter.string(from: $0) })")
     }
 
     func fetchTripDays(completion: (() -> Void)? = nil, forceRefresh: Bool = false) {
         print("📡 Bắt đầu fetchTripDays, forceRefresh=\(forceRefresh)")
         if !forceRefresh {
             if let cachedTripDays = loadFromCache() {
-                print("📂 Sử dụng dữ liệu từ cache: \(cachedTripDays.map { ($0.day, $0.activities.map { $0.activity }) })")
+                //print("📂 Sử dụng dữ liệu từ cache: \(cachedTripDays.map { ($0.day, $0.activities.map { $0.activity }) })")
                 self.tripDaysData = cachedTripDays
                 self.tripDays = cachedTripDays.compactMap { dateFormatter.date(from: $0.day) }
                 self.objectWillChange.send()
@@ -83,13 +289,13 @@ class TripDetailViewModel: ObservableObject {
 
     func activities(for date: Date) -> [TripActivity] {
         let selectedDateString = dateFormatter.string(from: date)
-        print("📋 Truy cập activities cho ngày \(selectedDateString), tripDaysData: \(tripDaysData.map { ($0.day, $0.activities.map { $0.activity }) })")
+        //print("📋 Truy cập activities cho ngày \(selectedDateString), tripDaysData: \(tripDaysData.map { ($0.day, $0.activities.map { $0.activity }) })")
         guard let tripDay = tripDaysData.first(where: { $0.day == selectedDateString }) else {
             print("❌ Không tìm thấy TripDay cho ngày: \(selectedDateString)")
             return []
         }
         let activities = tripDay.activities
-        print("📋 Hoạt động cho ngày \(selectedDateString): \(activities.map { "\($0.activity) (ID: \($0.id))" })")
+        //print("📋 Hoạt động cho ngày \(selectedDateString): \(activities.map { "\($0.activity) (ID: \($0.id))" })")
         return activities
     }
     
@@ -167,10 +373,10 @@ class TripDetailViewModel: ObservableObject {
                 if let addedActivity = response.data {
                     print("📅 Thêm hoạt động thành công: \(addedActivity.activity)")
                     self.showToast(message: "Đã thêm hoạt động: \(addedActivity.activity)")
-                    self.clearCache()
-                    self.fetchTripDays(completion: {
-                        print("📋 Dữ liệu tripDaysData sau khi thêm: \(self.tripDaysData.map { ($0.day, $0.activities.map { $0.activity }) })")
-                    }, forceRefresh: true)
+                    self.addActivityToTripDays(addedActivity)
+                    self.saveToCache(tripDays: self.tripDaysData)
+                    self.objectWillChange.send()
+                    self.refreshTrigger = UUID()
                     completion(.success(addedActivity))
                 } else {
                     let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Không nhận được dữ liệu hoạt động"])
@@ -202,17 +408,6 @@ class TripDetailViewModel: ObservableObject {
               let token = UserDefaults.standard.string(forKey: "authToken") else {
             print("❌ URL hoặc Token không hợp lệ")
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL hoặc Token không hợp lệ"])))
-            return
-        }
-        
-        clearCache() // Xóa cache trước khi cập nhật
-        performUpdateActivity(trip: trip, activity: activity, tripDayId: tripDay.id, token: token, completion: completion)
-    }
-    
-    private func performUpdateActivity(trip: TripModel, activity: TripActivity, tripDayId: Int, token: String, completion: @escaping (Result<TripActivity, Error>) -> Void) {
-        guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(trip.id)/days/\(tripDayId)/activities/\(activity.id)") else {
-            print("❌ URL không hợp lệ")
-            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL không hợp lệ"])))
             return
         }
         
@@ -260,12 +455,11 @@ class TripDetailViewModel: ObservableObject {
                 guard let self = self else { return }
                 if let updatedActivity = response.data?.updatedActivity {
                     print("📅 Cập nhật hoạt động thành công: \(updatedActivity.activity)")
-                    print("📋 Dữ liệu hoạt động cập nhật: \(updatedActivity)")
+                    self.updateActivityInTripDays(updatedActivity)
+                    self.saveToCache(tripDays: self.tripDaysData)
+                    self.objectWillChange.send()
+                    self.refreshTrigger = UUID()
                     self.showToast(message: "Đã cập nhật hoạt động: \(updatedActivity.activity)")
-                    self.clearCache()
-                    self.fetchTripDays(completion: {
-                        print("📋 Dữ liệu tripDaysData sau khi cập nhật: \(self.tripDaysData.map { ($0.day, $0.activities.map { $0.activity }) })")
-                    }, forceRefresh: true)
                     completion(.success(updatedActivity))
                 } else {
                     let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Không nhận được dữ liệu hoạt động"])
@@ -306,11 +500,11 @@ class TripDetailViewModel: ObservableObject {
             } receiveValue: { [weak self] response in
                 guard let self = self else { return }
                 if response.success {
+                    self.removeActivityFromTripDays(activityId: activityId, tripDayId: tripDayId)
+                    self.saveToCache(tripDays: self.tripDaysData)
+                    self.objectWillChange.send()
+                    self.refreshTrigger = UUID()
                     self.showToast(message: response.message ?? "Đã xóa hoạt động")
-                    self.clearCache()
-                    self.fetchTripDays(completion: {
-                        print("📋 Dữ liệu tripDaysData sau khi xóa: \(self.tripDaysData.map { ($0.day, $0.activities.map { $0.activity }) })")
-                    }, forceRefresh: true)
                     completion()
                 } else {
                     self.showToast(message: response.message ?? "Xóa thất bại")
@@ -318,6 +512,39 @@ class TripDetailViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    private func saveToCache(tripDays: [TripDay]) {
+        let cached = CachedTripDays(timestamp: Date(), data: tripDays)
+        do {
+            let data = try JSONEncoder().encode(cached)
+            UserDefaults.standard.set(data, forKey: "trip_days_cache_\(trip.id)")
+            print("💾 Đã lưu cache trip days cho tripId=\(trip.id)")
+        } catch {
+            print("❌ Lỗi khi lưu cache trip days: \(error.localizedDescription)")
+            showToast(message: "Lỗi khi lưu cache dữ liệu")
+        }
+    }
+
+    private func loadFromCache() -> [TripDay]? {
+        guard let data = UserDefaults.standard.data(forKey: "trip_days_cache_\(trip.id)") else {
+            print("⚠️ Không tìm thấy cache trip days cho tripId=\(trip.id)")
+            return nil
+        }
+        do {
+            let cached = try JSONDecoder().decode(CachedTripDays.self, from: data)
+            if Date().timeIntervalSince(cached.timestamp) > cacheExpirationSeconds {
+                print("⚠️ Cache hết hạn, xóa cache")
+                clearCache()
+                return nil
+            }
+            //print("📂 Đã tải cache trip days cho tripId=\(trip.id): \(cached.data.map { ($0.day, $0.activities.map { $0.activity }) })")
+            return cached.data
+        } catch {
+            print("❌ Lỗi khi đọc cache trip days: \(error.localizedDescription)")
+            clearCache()
+            return nil
+        }
     }
 
     private func handleCompletion(_ completion: Subscribers.Completion<Error>, completionHandler: (() -> Void)? = nil) {
@@ -343,32 +570,6 @@ class TripDetailViewModel: ObservableObject {
             print("✅ Fetch trip days hoàn tất")
         }
         completionHandler?()
-    }
-
-    private func saveToCache(tripDays: [TripDay]) {
-        do {
-            let data = try JSONEncoder().encode(tripDays)
-            UserDefaults.standard.set(data, forKey: "trip_days_cache_\(trip.id)")
-            print("💾 Đã lưu cache trip days cho tripId=\(trip.id)")
-        } catch {
-            print("❌ Lỗi khi lưu cache trip days: \(error.localizedDescription)")
-            showToast(message: "Lỗi khi lưu cache dữ liệu")
-        }
-    }
-
-    private func loadFromCache() -> [TripDay]? {
-        guard let data = UserDefaults.standard.data(forKey: "trip_days_cache_\(trip.id)") else {
-            print("⚠️ Không tìm thấy cache trip days cho tripId=\(trip.id)")
-            return nil
-        }
-        do {
-            let tripDays = try JSONDecoder().decode([TripDay].self, from: data)
-            print("📂 Đã tải cache trip days cho tripId=\(trip.id): \(tripDays.map { ($0.day, $0.activities.map { $0.activity }) })")
-            return tripDays
-        } catch {
-            print("❌ Lỗi khi đọc cache trip days: \(error.localizedDescription)")
-            return nil
-        }
     }
 
     func showToast(message: String) {

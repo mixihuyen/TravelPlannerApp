@@ -2,6 +2,12 @@ import Foundation
 import Combine
 import SwiftUI
 
+// Thêm struct để lưu cache với timestamp
+struct CachedPackingList: Codable {
+    let timestamp: Date
+    let data: PackingList
+}
+
 class PackingListViewModel: ObservableObject {
     @Published var packingList: PackingList
     @Published var participants: [Participant] = []
@@ -13,73 +19,41 @@ class PackingListViewModel: ObservableObject {
     private let networkManager = NetworkManager()
     private let participantViewModel: ParticipantViewModel
     private let tripId: Int
+    private let cacheExpirationSeconds: TimeInterval = 1800 // 30 phút
+    private var lastFetchTimestamp: Date? // Theo dõi lần fetch cuối
+    private var lastParticipantsHash: String? // So sánh participants để tránh trigger lặp
 
     init(tripId: Int) {
         self.tripId = tripId
         self.packingList = PackingList(sharedItems: [], personalItems: [])
         self.participantViewModel = ParticipantViewModel()
-        UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
-        loadFromCache()
         
-        // Đăng ký lắng nghe thay đổi của participants
+        if let cached = loadFromCache(), !isCacheExpired() {
+            self.packingList = cached
+            print("📂 Loaded packing list from cache for tripId=\(tripId)")
+        }
+        
+        // Debounce participant changes
         participantViewModel.$participants
+            .debounce(for: 0.5, scheduler: DispatchQueue.main)
             .sink { [weak self] newParticipants in
                 guard let self else { return }
+                let participantsHash = newParticipants.map { "\($0.user.id):\($0.user.username)" }.joined()
+                if self.lastParticipantsHash == participantsHash {
+                    print("⚠️ Bỏ qua participants change vì không có thay đổi thực sự")
+                    return
+                }
+                self.lastParticipantsHash = participantsHash
                 print("👥 Detected participants change: \(newParticipants.map { "\($0.user.id): \($0.user.username), \(String(describing: $0.user.firstName)) \(String(describing: $0.user.lastName))" })")
+                
                 self.participants = newParticipants
-                
-                // Kiểm tra và bỏ gán các vật dụng có userId không hợp lệ
                 let validUserIds = Set(newParticipants.map { $0.user.id })
-                var needsUpdate = false
                 
-                packingList.sharedItems = packingList.sharedItems.map { item in
-                    var updatedItem = item
-                    if let userId = item.userId, !validUserIds.contains(userId) {
-                        updatedItem.userId = nil
-                        needsUpdate = true
-                        print("⚠️ Invalid userId=\(userId) in shared item \(item.name), setting to nil")
-                        self.updatePackingItem(
-                            itemId: item.id,
-                            name: item.name,
-                            quantity: item.quantity,
-                            isShared: item.isShared,
-                            isPacked: item.isPacked,
-                            userId: nil
-                        ) {
-                            print("✅ Đã cập nhật userId=nil cho shared item \(item.id) qua API")
-                        } onError: { error in
-                            print("❌ Lỗi khi cập nhật shared item \(item.id): \(error.localizedDescription)")
-                        }
-                    }
-                    return updatedItem
-                }
+                let needsUpdateShared = self.cleanupInvalidOwners(in: &self.packingList.sharedItems, validUserIds: validUserIds)
+                let needsUpdatePersonal = self.cleanupInvalidOwners(in: &self.packingList.personalItems, validUserIds: validUserIds)
                 
-                packingList.personalItems = packingList.personalItems.map { item in
-                    var updatedItem = item
-                    if let userId = item.userId, !validUserIds.contains(userId) {
-                        updatedItem.userId = nil
-                        needsUpdate = true
-                        print("⚠️ Invalid userId=\(userId) in personal item \(item.name), setting to nil")
-                        self.updatePackingItem(
-                            itemId: item.id,
-                            name: item.name,
-                            quantity: item.quantity,
-                            isShared: item.isShared,
-                            isPacked: item.isPacked,
-                            userId: nil
-                        ) {
-                            print("✅ Đã cập nhật userId=nil cho personal item \(item.id) qua API")
-                        } onError: { error in
-                            print("❌ Lỗi khi cập nhật personal item \(item.id): \(error.localizedDescription)")
-                        }
-                    }
-                    return updatedItem
-                }
-                
-                if needsUpdate {
-                    // Xóa cache và làm mới từ API
-                    UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(self.tripId)")
-                    print("🗑️ Đã xóa cache packing list do thay đổi participants")
+                if needsUpdateShared || needsUpdatePersonal {
+                    print("🔄 Cần làm mới packing list do userIds không hợp lệ")
                     self.fetchPackingList {
                         print("✅ Đã làm mới packing list từ API sau khi cập nhật participants")
                         self.saveToCache(packingList: self.packingList)
@@ -90,9 +64,45 @@ class PackingListViewModel: ObservableObject {
             .store(in: &cancellables)
         
         fetchParticipants {
-            self.fetchPackingList()
+            if self.packingList.sharedItems.isEmpty && self.packingList.personalItems.isEmpty || self.isCacheExpired() {
+                self.fetchPackingList {
+                    print("✅ Đã làm mới packing list từ API")
+                }
+            }
         }
     }
+    // Kiểm tra cache hết hạn
+        private func isCacheExpired() -> Bool {
+            guard let lastFetch = lastFetchTimestamp else { return true }
+            return Date().timeIntervalSince(lastFetch) > cacheExpirationSeconds
+        }
+    
+    private func cleanupInvalidOwners(in items: inout [PackingItem], validUserIds: Set<Int>) -> Bool {
+            var needsUpdate = false
+            
+            items = items.map { item in
+                var updatedItem = item
+                if let userId = item.userId, !validUserIds.contains(userId) {
+                    updatedItem.userId = nil
+                    needsUpdate = true
+                    self.updatePackingItem(
+                        itemId: item.id,
+                        name: item.name,
+                        quantity: item.quantity,
+                        isShared: item.isShared,
+                        isPacked: item.isPacked,
+                        userId: nil
+                    ) {
+                        print("✅ Đã cập nhật userId=nil cho item \(item.id) qua API")
+                    } onError: { error in
+                        print("❌ Lỗi khi cập nhật item \(item.id): \(error.localizedDescription)")
+                    }
+                }
+                return updatedItem
+            }
+            
+            return needsUpdate
+        }
 
     func unassignItemsForUser(userId: Int, completion: (() -> Void)? = nil) {
         print("🔄 Bắt đầu bỏ gán các vật dụng cho userId=\(userId)")
@@ -175,53 +185,63 @@ class PackingListViewModel: ObservableObject {
     }
 
     func fetchPackingList(completion: (() -> Void)? = nil) {
-        guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/items"),
-              let token = UserDefaults.standard.string(forKey: "authToken") else {
-            print("❌ Invalid URL or Token")
-            showToast(message: "URL hoặc token không hợp lệ")
-            isLoading = false
-            completion?()
-            return
-        }
-
-        // Xóa cache để đảm bảo lấy dữ liệu mới từ API
-        UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
-        print("🗑️ Đã xóa cache packing list cho tripId=\(tripId) trước khi fetch")
-
-        let request = NetworkManager.createRequest(url: url, method: "GET", token: token)
-        isLoading = true
-        networkManager.performRequest(request, decodeTo: PackingListResponse.self)
-            .sink { [weak self] completionResult in
-                self?.isLoading = false
-                self?.handleCompletion(completionResult, completionHandler: completion)
-            } receiveValue: { [weak self] response in
-                guard let self, response.success else {
-                    print("❌ Failed to fetch packing list")
-                    self?.showToast(message: "Không thể tải danh sách đồ")
-                    completion?()
-                    return
-                }
-                let items = response.data.tripItems.map { item in
-                    PackingItem(
-                        id: item.id,
-                        name: item.name,
-                        isPacked: item.isPacked,
-                        isShared: item.isShared,
-                        userId: item.userId,
-                        quantity: item.quantity,
-                        note: item.note
-                    )
-                }
-                self.packingList = PackingList(
-                    sharedItems: items.filter { $0.isShared },
-                    personalItems: items.filter { !$0.isShared }
-                )
-                self.saveToCache(packingList: self.packingList)
-                print("📋 Successfully fetched packing list: \(items.count) items (\(self.packingList.sharedItems.count) shared, \(self.packingList.personalItems.count) personal)")
+            guard !isLoading else {
+                print("⚠️ Đã bỏ qua fetchPackingList vì đang loading")
                 completion?()
+                return
             }
-            .store(in: &cancellables)
-    }
+            
+            guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/items"),
+                  let token = UserDefaults.standard.string(forKey: "authToken") else {
+                print("❌ Invalid URL or Token")
+                showToast(message: "URL hoặc token không hợp lệ")
+                isLoading = false
+                completion?()
+                return
+            }
+
+            let request = NetworkManager.createRequest(url: url, method: "GET", token: token)
+            isLoading = true
+            networkManager.performRequest(request, decodeTo: PackingListResponse.self)
+                .sink { [weak self] completionResult in
+                    self?.isLoading = false
+                    self?.handleCompletion(completionResult, completionHandler: completion)
+                } receiveValue: { [weak self] response in
+                    guard let self, response.success else {
+                        print("❌ Failed to fetch packing list")
+                        self?.showToast(message: "Không thể tải danh sách đồ")
+                        completion?()
+                        return
+                    }
+                    let items = response.data.tripItems.map { item in
+                        PackingItem(
+                            id: item.id,
+                            name: item.name,
+                            isPacked: item.isPacked,
+                            isShared: item.isShared,
+                            userId: item.userId,
+                            quantity: item.quantity,
+                            note: item.note
+                        )
+                    }
+                    // Kiểm tra thay đổi thực sự
+                    let newPackingList = PackingList(
+                        sharedItems: items.filter { $0.isShared },
+                        personalItems: items.filter { !$0.isShared }
+                    )
+                    if self.packingList == newPackingList {
+                        print("⚠️ Bỏ qua cập nhật packingList vì không có thay đổi")
+                        completion?()
+                        return
+                    }
+                    self.packingList = newPackingList
+                    self.lastFetchTimestamp = Date()
+                    self.saveToCache(packingList: self.packingList)
+                    print("✅ Saved packing list to cache for tripId=\(tripId)")
+                    completion?()
+                }
+                .store(in: &cancellables)
+        }
 
     func createPackingItem(name: String, quantity: Int, isShared: Bool, isPacked: Bool = false, userId: Int? = nil, completion: (() -> Void)? = nil) {
         guard !name.isEmpty else {
@@ -417,14 +437,11 @@ class PackingListViewModel: ObservableObject {
     }
 
     func fetchParticipants(completion: (() -> Void)? = nil) {
-        participantViewModel.fetchParticipants(tripId: tripId) {
-            print("✅ Đã làm mới danh sách participants từ API")
-            self.fetchPackingList {
-                print("✅ Đã làm mới danh sách vật dụng sau khi cập nhật participants")
+            participantViewModel.fetchParticipants(tripId: tripId) {
+                print("✅ Đã làm mới danh sách participants từ API")
                 completion?()
             }
         }
-    }
 
     func currentItems(for tab: PackingListView.TabType) -> [PackingItem] {
         switch tab {
@@ -495,58 +512,52 @@ class PackingListViewModel: ObservableObject {
     }
 
     func ownerInitials(for item: PackingItem) -> String {
-        guard let userId = item.userId else {
-            print("⚠️ No userId assigned for item \(item.name) (ID: \(item.id))")
-            return ""
-        }
-        guard let participant = participants.first(where: { $0.user.id == userId }) else {
-            print("⚠️ No participant found for userId=\(userId) in item \(item.name) (ID: \(item.id))")
-            // Cập nhật userId về nil nếu participant không tồn tại
-            if let index = packingList.sharedItems.firstIndex(where: { $0.id == item.id }) {
-                packingList.sharedItems[index].userId = nil
-                updatePackingItem(
-                    itemId: item.id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    isShared: item.isShared,
-                    isPacked: item.isPacked,
-                    userId: nil
-                ) {
-                    print("✅ Đã cập nhật userId=nil cho shared item \(item.id) do participant không tồn tại")
-                    self.saveToCache(packingList: self.packingList)
-                } onError: { error in
-                    print("❌ Lỗi khi cập nhật userId=nil cho shared item \(item.id): \(error.localizedDescription)")
-                }
-            } else if let index = packingList.personalItems.firstIndex(where: { $0.id == item.id }) {
-                packingList.personalItems[index].userId = nil
-                updatePackingItem(
-                    itemId: item.id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    isShared: item.isShared,
-                    isPacked: item.isPacked,
-                    userId: nil
-                ) {
-                    print("✅ Đã cập nhật userId=nil cho personal item \(item.id) do participant không tồn tại")
-                    self.saveToCache(packingList: self.packingList)
-                } onError: { error in
-                    print("❌ Lỗi khi cập nhật userId=nil cho personal item \(item.id): \(error.localizedDescription)")
-                }
+            guard let userId = item.userId else {
+                print("⚠️ No userId assigned for item \(item.name) (ID: \(item.id))")
+                return ""
             }
-            // Xóa cache và làm mới từ API
-            UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
-            print("🗑️ Đã xóa cache packing list cho tripId=\(tripId)")
-            fetchPackingList {
-                print("✅ Đã làm mới packing list từ API sau khi phát hiện userId không hợp lệ")
+            guard let participant = participants.first(where: { $0.user.id == userId }) else {
+                print("⚠️ No participant found for userId=\(userId) in item \(item.name) (ID: \(item.id))")
+                // Update userId to nil locally and via API
+                if let index = packingList.sharedItems.firstIndex(where: { $0.id == item.id }) {
+                    packingList.sharedItems[index].userId = nil
+                    updatePackingItem(
+                        itemId: item.id,
+                        name: item.name,
+                        quantity: item.quantity,
+                        isShared: item.isShared,
+                        isPacked: item.isPacked,
+                        userId: nil
+                    ) {
+                        print("✅ Đã cập nhật userId=nil cho shared item \(item.id) do participant không tồn tại")
+                        self.saveToCache(packingList: self.packingList)
+                    } onError: { error in
+                        print("❌ Lỗi khi cập nhật userId=nil cho shared item \(item.id): \(error.localizedDescription)")
+                    }
+                } else if let index = packingList.personalItems.firstIndex(where: { $0.id == item.id }) {
+                    packingList.personalItems[index].userId = nil
+                    updatePackingItem(
+                        itemId: item.id,
+                        name: item.name,
+                        quantity: item.quantity,
+                        isShared: item.isShared,
+                        isPacked: item.isPacked,
+                        userId: nil
+                    ) {
+                        print("✅ Đã cập nhật userId=nil cho personal item \(item.id) do participant không tồn tại")
+                        self.saveToCache(packingList: self.packingList)
+                    } onError: { error in
+                        print("❌ Lỗi khi cập nhật userId=nil cho personal item \(item.id): \(error.localizedDescription)")
+                    }
+                }
+                return ""
             }
-            return ""
+            let firstInitial = participant.user.firstName?.prefix(1) ?? ""
+            let lastInitial = participant.user.lastName?.prefix(1) ?? ""
+            let initials = "\(firstInitial)\(lastInitial)"
+            print("✅ Generated initials \(initials) for userId=\(userId) in item \(item.name)")
+            return initials
         }
-        let firstInitial = participant.user.firstName?.prefix(1) ?? ""
-        let lastInitial = participant.user.lastName?.prefix(1) ?? ""
-        let initials = "\(firstInitial)\(lastInitial)"
-        print("✅ Generated initials \(initials) for userId=\(userId) in item \(item.name)")
-        return initials
-    }
 
     func assignItem(itemId: Int, to userId: Int?) {
         guard let index = packingList.sharedItems.firstIndex(where: { $0.id == itemId }) else {
@@ -602,15 +613,16 @@ class PackingListViewModel: ObservableObject {
     }
 
     private func saveToCache(packingList: PackingList) {
-        do {
-            let data = try JSONEncoder().encode(packingList)
-            UserDefaults.standard.set(data, forKey: "packing_list_cache_\(tripId)")
-            print("✅ Saved packing list to cache for tripId=\(tripId)")
-        } catch {
-            print("❌ Error saving packing list cache: \(error.localizedDescription)")
-            showToast(message: "Lỗi khi lưu cache")
+            let cached = CachedPackingList(timestamp: Date(), data: packingList)
+            do {
+                let data = try JSONEncoder().encode(cached)
+                UserDefaults.standard.set(data, forKey: "packing_list_cache_\(tripId)")
+                print("✅ Saved packing list to cache for tripId=\(tripId)")
+            } catch {
+                print("❌ Error saving packing list cache: \(error.localizedDescription)")
+                showToast(message: "Lỗi khi lưu cache")
+            }
         }
-    }
 
     private func loadFromCache() -> PackingList? {
         guard let data = UserDefaults.standard.data(forKey: "packing_list_cache_\(tripId)") else {
@@ -618,11 +630,21 @@ class PackingListViewModel: ObservableObject {
             return nil
         }
         do {
-            let packingList = try JSONDecoder().decode(PackingList.self, from: data)
+            let cached = try JSONDecoder().decode(CachedPackingList.self, from: data)
+            if Date().timeIntervalSince(cached.timestamp) > cacheExpirationSeconds {
+                print("⚠️ Cache expired for packing list, clearing cache")
+                UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
+                return nil
+            }
             print("✅ Loaded packing list from cache for tripId=\(tripId)")
-            return packingList
+            return cached.data
         } catch {
-            print("❌ Error reading packing list cache: \(error.localizedDescription)")
+            // Chỉ in lỗi nếu đó là lỗi giải mã thực sự
+            if (error as NSError).code != NSFileReadNoSuchFileError {
+                print("❌ Error decoding packing list cache: \(error.localizedDescription)")
+            } else {
+                print("⚠️ Packing list cache data is missing or corrupted for tripId=\(tripId)")
+            }
             UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
             return nil
         }

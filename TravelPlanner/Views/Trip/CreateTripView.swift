@@ -6,6 +6,7 @@ struct CreateTripView: View {
     
     @State private var newTripName: String = ""
     @State private var newTripDescription: String = ""
+    @State private var newTripAddress: String = ""
     @State private var newTripStartDate = Date()
     @State private var newTripEndDate = Date()
     
@@ -48,6 +49,8 @@ struct CreateTripView: View {
                 
                 Text("Hãy thêm mô tả cho chuyến đi của bạn")
                 CustomTextField(placeholder: "Mô tả (không bắt buộc)", text: $newTripDescription, autocapitalization: .sentences)
+                Text("Hãy nhập địa chỉ cho chuyến đi")
+                            CustomTextField(placeholder: "Địa chỉ", text: $newTripAddress, autocapitalization: .sentences)
             }
             .font(.system(size: 16))
             .foregroundColor(.white)
@@ -87,6 +90,13 @@ struct CreateTripView: View {
     private func addTrip() {
         guard !newTripName.isEmpty else {
             alertMessage = "Vui lòng nhập tên chuyến đi"
+            showAlert = true
+            return
+        }
+        
+        guard !newTripAddress.isEmpty else {
+            alertMessage = "Vui lòng nhập địa chỉ"
+            showAlert = true
             return
         }
         
@@ -98,12 +108,12 @@ struct CreateTripView: View {
             description: newTripDescription.isEmpty ? nil : newTripDescription,
             startDate: start,
             endDate: end,
-            status: "planned"
+            address: newTripAddress
         )
         
         resetForm()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0)  {
+        DispatchQueue.main.asyncAfter(deadline: .now()) {
             navManager.goToRoot()
         }
     }
@@ -111,7 +121,9 @@ struct CreateTripView: View {
     private func resetForm() {
         newTripName = ""
         newTripDescription = ""
+        newTripAddress = ""
         newTripStartDate = Date()
         newTripEndDate = Date()
+        
     }
 }
