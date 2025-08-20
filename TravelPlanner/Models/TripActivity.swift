@@ -1,32 +1,76 @@
 import Foundation
+import DGCharts
 
-struct TripActivity: Identifiable, Equatable {
-    let id = UUID()
-    let date: Date
-    let startTime: Date
-    let endTime: Date
-    let name: String
-    let address: String?
-    var estimatedCost: Double? = 0
-    var actualCost: Double? = 0
-    let note: String?
-    
-    // MARK: - Tiện ích hiển thị giờ dạng "HH:mm - HH:mm"
-    var timeRange: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return "\(formatter.string(from: startTime)) - \(formatter.string(from: endTime))"
+struct TripActivity: Codable, Identifiable, Hashable {
+    let id: Int
+    let tripDayId: Int
+    let startTime: String
+    let endTime: String
+    let activity: String
+    let address: String
+    let estimatedCost: Double
+    let actualCost: Double
+    let note: String
+    let createdAt: String
+    let updatedAt: String
+    let images: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case tripDayId = "trip_day_id"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case activity
+        case address
+        case estimatedCost = "estimated_cost"
+        case actualCost = "actual_cost"
+        case note
+        case createdAt
+        case updatedAt
+        case images
     }
-    var timeRange2: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return "\(formatter.string(from: startTime)) \n \(formatter.string(from: endTime))"
+
+    // Triển khai Hashable
+    static func == (lhs: TripActivity, rhs: TripActivity) -> Bool {
+        lhs.id == rhs.id
     }
-    
-    // MARK: - Lấy ngày dạng "dd/MM/yyyy"
-    var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM/yyyy"
-        return formatter.string(from: date)
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
+}
+
+extension TripActivity {
+    func toPieEntry() -> PieChartDataEntry? {
+        guard actualCost > 0 else { return nil }
+        return PieChartDataEntry(value: actualCost, label: activity)
+    }
+}
+
+struct TripActivityResponse: Codable {
+    let success: Bool
+    let data: TripActivity?
+}
+
+struct TripActivityUpdateResponse: Codable {
+    let success: Bool
+    let data: UpdatedActivityWrapper?
+
+    struct UpdatedActivityWrapper: Codable {
+        let updatedActivity: TripActivity
+
+        enum CodingKeys: String, CodingKey {
+            case updatedActivity
+        }
+    }
+}
+
+struct DeleteActivityResponse: Codable {
+    let success: Bool
+    let message: String?
+}
+
+struct TripActivityListResponse: Codable {
+    let success: Bool
+    let data: [TripActivity]?
 }

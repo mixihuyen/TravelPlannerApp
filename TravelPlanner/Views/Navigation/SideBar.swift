@@ -12,10 +12,14 @@ struct SideBar: View {
             VStack(alignment: .leading, spacing: 30) {
                 // Profile Header
                 HStack(spacing: 12) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
+                    Circle()
+                        .fill(Color.pink)
                         .frame(width: 50, height: 50)
-                        .foregroundColor(.white)
+                        .overlay(
+                            Text(authManager.avatarInitials())
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                        )
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(authManager.currentUserName ?? "Khách")
@@ -42,6 +46,7 @@ struct SideBar: View {
                     }) {
                         HStack {
                             Text("Đăng xuất")
+                                .font(.system(size: 16))
                             Image(systemName: "rectangle.portrait.and.arrow.forward.fill")
                             
                         }

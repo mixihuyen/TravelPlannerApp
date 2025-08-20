@@ -44,8 +44,8 @@ struct PieChartViewWrapper: UIViewRepresentable {
             // Pass color mapping to SwiftUI after chart is updated
             var mapping: [TripActivity: UIColor] = [:]
             for (index, entry) in entries.enumerated() {
-                if let name = entry.data as? String,
-                   let activity = activities.first(where: { $0.name == name && ($0.actualCost ?? 0) == entry.value }) {
+                if let activityName = entry.data as? String,
+                   let activity = activities.first(where: { $0.activity == activityName && $0.actualCost == entry.value }) {
                     mapping[activity] = colors[index % colors.count]
                 }
             }
@@ -54,44 +54,15 @@ struct PieChartViewWrapper: UIViewRepresentable {
     }
 
     private func makePieEntries(from activities: [TripActivity]) -> [PieChartDataEntry] {
-        let total = activities.compactMap { $0.actualCost }.reduce(0, +)
+        let total = activities.map { $0.actualCost }.reduce(0, +)
         return activities.compactMap { activity in
-            guard let actual = activity.actualCost, actual > 0 else { return nil }
-            let percent = actual / total
+            guard activity.actualCost > 0 else { return nil }
+            let percent = activity.actualCost / total
             let shouldShowLabel = percent >= 0.15
-            let shortLabel = shouldShowLabel ? (activity.name.count > 12 ? String(activity.name.prefix(10)) + "..." : activity.name) : nil
-            let entry = PieChartDataEntry(value: actual, label: shortLabel)
-            entry.data = activity.name as NSString
+            let shortLabel = shouldShowLabel ? (activity.activity.count > 12 ? String(activity.activity.prefix(10)) + "..." : activity.activity) : nil
+            let entry = PieChartDataEntry(value: activity.actualCost, label: shortLabel)
+            entry.data = activity.activity as NSString
             return entry
         }
-    }
-}
-
-extension TripActivity: Hashable {
-    public static func == (lhs: TripActivity, rhs: TripActivity) -> Bool {
-        lhs.name == rhs.name && lhs.actualCost == rhs.actualCost
-    }
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(name)
-        hasher.combine(actualCost)
-    }
-}
-
-
-// MARK: - Extensions
-extension TripActivity {
-    func toPieEntry() -> PieChartDataEntry? {
-        guard let actual = actualCost else { return nil }
-        return PieChartDataEntry(value: actual, label: name)
-    }
-}
-
-extension TripModel {
-    var totalEstimated: Double {
-        activities.map { $0.estimatedCost ?? 0 }.reduce(0, +)
-    }
-
-    var totalActual: Double {
-        activities.map { $0.actualCost ?? 0 }.reduce(0, +)
     }
 }

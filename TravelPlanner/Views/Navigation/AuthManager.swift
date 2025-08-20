@@ -29,12 +29,20 @@ class AuthManager: ObservableObject {
         }
     }
     
-    func signIn(token: String, firstName: String?, lastName: String?, username: String?, email: String?) {
+    func avatarInitials() -> String {
+        let firstInitial = UserDefaults.standard.string(forKey: "firstName")?.prefix(1) ?? ""
+        let lastInitial = UserDefaults.standard.string(forKey: "lastName")?.prefix(1) ?? ""
+        return "\(firstInitial)\(lastInitial)".uppercased()
+    }
+
+    
+    func signIn(token: String, firstName: String?, lastName: String?, username: String?, email: String?, userId: Int?) {
         UserDefaults.standard.set(token, forKey: "authToken")
         UserDefaults.standard.set(firstName, forKey: "firstName")
         UserDefaults.standard.set(lastName, forKey: "lastName")
         UserDefaults.standard.set(username, forKey: "username")
         UserDefaults.standard.set(email, forKey: "userEmail")
+        UserDefaults.standard.set(userId, forKey: "userId")
         self.currentUserName = [firstName, lastName].compactMap { $0 }.joined(separator: " ").trimmingCharacters(in: .whitespaces)
         self.currentUserEmail = email
         self.username = username
@@ -47,6 +55,7 @@ class AuthManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "lastName")
         UserDefaults.standard.removeObject(forKey: "username")
         UserDefaults.standard.removeObject(forKey: "userEmail")
+        UserDefaults.standard.removeObject(forKey: "userId")
         self.currentUserName = nil
         self.currentUserEmail = nil
         self.username = nil
