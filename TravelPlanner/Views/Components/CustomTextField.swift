@@ -41,7 +41,7 @@ struct CustomTextField: View {
                         .foregroundColor(.white.opacity(0.5))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.leading, showIcon || showIconImage ? 0 : 12)
-                        .padding(.top, 12)
+                        .padding(.top,12)
                 }
                 
                 if isMultiline {

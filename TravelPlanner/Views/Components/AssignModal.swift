@@ -38,7 +38,7 @@ struct AssignModal: View {
                             let initials = viewModel.initials(for: participant.user)
                             assignOption(
                                 title: "\(participant.user.firstName ?? "") \(participant.user.lastName ?? "")",
-                                subtitle:"@\(participant.user.username)",
+                                subtitle:"@\(participant.user.username ?? "Unknown" ) ",
                                 initials: initials,
                                 userId: participant.user.id
                             )

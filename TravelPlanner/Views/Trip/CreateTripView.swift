@@ -14,7 +14,7 @@ struct CreateTripView: View {
     @State private var alertMessage: String = ""
     
     var body: some View {
-        VStack {
+        ScrollView {
             headerView
             formView
             Spacer()
@@ -42,34 +42,81 @@ struct CreateTripView: View {
     }
     
     private var formView: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Group {
+        VStack(alignment: .leading) {
+            Text("THÔNG TIN CHUYẾN ĐI")
+                .font(.system(size: 16))
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+            VStack (alignment: .leading, spacing: 7){
+                Text("Ảnh bìa")
+                    .font(.system(size: 16, weight: .medium))
+                ZStack{
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
+                        .frame(height: 150)
+                        .frame(maxWidth: .infinity)
+                        .foregroundColor(Color.pink)
+                    Image(systemName: "photo.badge.plus")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundColor(Color.pink)
+                }
+                .padding(.bottom)
+                
                 Text("Hãy đặt tên cho chuyến đi của bạn")
+                    .font(.system(size: 16, weight: .medium))
                 CustomTextField(placeholder: "Tên chuyến đi", text: $newTripName, autocapitalization: .sentences)
+                    .padding(.bottom)
+                
+                
+                Text("Địa điểm")
+                    .font(.system(size: 16, weight: .medium))
+                            CustomTextField(placeholder: "Địa chỉ", text: $newTripAddress, autocapitalization: .sentences)
+                    .padding(.bottom)
+                ZStack{
+                    Image("map")
+                        .resizable()
+                        .frame(height: 130)
+                        .frame(maxWidth: .infinity)
+                    HStack{
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.system(size: 16))
+                        Text("Thêm địa điểm")
+                            .font(.system(size: 16))
+                    }
+                    
+                    .padding(3)
+                    .overlay(
+                            Rectangle()
+                                .stroke(Color.gray)
+                        )
+                    .foregroundColor(.gray)
+                }
+                .padding(.bottom)
+                
                 
                 Text("Hãy thêm mô tả cho chuyến đi của bạn")
-                CustomTextField(placeholder: "Mô tả (không bắt buộc)", text: $newTripDescription, autocapitalization: .sentences)
-                Text("Hãy nhập địa chỉ cho chuyến đi")
-                            CustomTextField(placeholder: "Địa chỉ", text: $newTripAddress, autocapitalization: .sentences)
+                    .font(.system(size: 16, weight: .medium))
+                CustomTextField(placeholder: "Mô tả (không bắt buộc)", text: $newTripDescription, autocapitalization: .sentences, height: 80, isMultiline: true)
+                    .padding(.bottom)
+                CustomDatePicker(title: "Ngày bắt đầu", date: $newTripStartDate)
+                    .padding(.bottom)
+                CustomDatePicker(title: "Ngày kết thúc", date: $newTripEndDate)
+                    .padding(.bottom, 30)
+                
+                addButton
+                
             }
             .font(.system(size: 16))
             .foregroundColor(.white)
+            .padding(10)
             
-            datePicker(title: "Ngày bắt đầu", date: $newTripStartDate)
-            datePicker(title: "Ngày kết thúc", date: $newTripEndDate)
             
-            addButton
         }
-        .padding()
+        .padding(.horizontal)
     }
     
-    private func datePicker(title: String, date: Binding<Date>) -> some View {
-        DatePicker(title, selection: date, displayedComponents: .date)
-            .datePickerStyle(.compact)
-            .foregroundColor(.white)
-            .colorScheme(.dark)
-            .environment(\.locale, Locale(identifier: "vi_VN"))
-    }
+    
+
     
     private var addButton: some View {
         Button(action: addTrip) {

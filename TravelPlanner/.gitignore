@@ -66,6 +66,7 @@ playground.xcworkspace
 
 # App-specific
 .env
+Secrets.xcconfig
 *.secret
 Secrets.swift
 

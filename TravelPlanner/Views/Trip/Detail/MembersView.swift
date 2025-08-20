@@ -3,7 +3,7 @@ import SwiftUI
 struct MembersView: View {
     var trip: TripModel
     @StateObject private var participantViewModel = ParticipantViewModel()
-    @StateObject private var packingListViewModel = PackingListViewModel(tripId: 1) // Thêm PackingListViewModel
+    @StateObject private var packingListViewModel: PackingListViewModel
     @State private var searchText = ""
     @State private var selectedUser: User?
     @State private var showSearchView = false
@@ -11,6 +11,13 @@ struct MembersView: View {
     @State private var showToast = false
     @State private var parentToastMessage = ""
     @State private var parentShowToast = false
+    @State private var showLeaveConfirmation = false
+    @Environment(\.dismiss) private var dismiss
+    
+    init(trip: TripModel) {
+        self.trip = trip
+        self._packingListViewModel = StateObject(wrappedValue: PackingListViewModel(tripId: trip.id))
+    }
     
     var body: some View {
         ZStack {
@@ -20,13 +27,14 @@ struct MembersView: View {
             MainContentView(
                 trip: trip,
                 participantViewModel: participantViewModel,
-                packingListViewModel: packingListViewModel, // Truyền packingListViewModel
+                packingListViewModel: packingListViewModel,
                 showSearchView: $showSearchView,
                 selectedUser: $selectedUser,
                 toastMessage: $toastMessage,
                 showToast: $showToast,
                 parentToastMessage: $parentToastMessage,
-                parentShowToast: $parentShowToast
+                parentShowToast: $parentShowToast,
+                showLeaveConfirmation: $showLeaveConfirmation
             )
             .overlay(
                 Group {
@@ -47,9 +55,24 @@ struct MembersView: View {
         }
         .onAppear {
             participantViewModel.fetchParticipants(tripId: trip.id)
-            packingListViewModel.fetchParticipants { // Đảm bảo PackingListViewModel cũng làm mới dữ liệu
+            packingListViewModel.fetchParticipants {
                 print("✅ PackingListViewModel đã làm mới participants")
             }
+        }
+        .alert(isPresented: $showLeaveConfirmation) {
+            Alert(
+                title: Text("Rời nhóm"),
+                message: Text("Bạn có chắc chắn muốn rời nhóm này không?"),
+                primaryButton: .destructive(Text("Rời nhóm")) {
+                    participantViewModel.leaveTrip(tripId: trip.id, packingListViewModel: packingListViewModel) {
+                        print("✅ User has left the trip")
+                        parentToastMessage = "Đã rời nhóm thành công!"
+                        parentShowToast = true
+                        dismiss()
+                    }
+                },
+                secondaryButton: .cancel(Text("Hủy"))
+            )
         }
     }
 }
@@ -58,21 +81,29 @@ struct MembersView: View {
 private struct MainContentView: View {
     let trip: TripModel
     @ObservedObject var participantViewModel: ParticipantViewModel
-    @ObservedObject var packingListViewModel: PackingListViewModel // Thêm tham số
+    @ObservedObject var packingListViewModel: PackingListViewModel
     @Binding var showSearchView: Bool
     @Binding var selectedUser: User?
     @Binding var toastMessage: String
     @Binding var showToast: Bool
     @Binding var parentToastMessage: String
     @Binding var parentShowToast: Bool
+    @Binding var showLeaveConfirmation: Bool
     
     var body: some View {
         VStack {
-            HeaderView(showSearchView: $showSearchView, participantCount: participantViewModel.participants.count)
+            HeaderView(
+                trip: trip,
+                showSearchView: $showSearchView,
+                participantCount: participantViewModel.participants.count,
+                participantViewModel: participantViewModel,
+                packingListViewModel: packingListViewModel,
+                showLeaveConfirmation: $showLeaveConfirmation
+            )
             ParticipantsListView(
                 participantViewModel: participantViewModel,
-                packingListViewModel: packingListViewModel, // Truyền packingListViewModel
-                tripId: trip.id
+                packingListViewModel: packingListViewModel,
+                trip: trip
             )
             NavigationLink(
                 destination: SearchUsersView(
@@ -93,8 +124,12 @@ private struct MainContentView: View {
 
 // MARK: - Header View
 private struct HeaderView: View {
+    let trip: TripModel
     @Binding var showSearchView: Bool
     let participantCount: Int
+    @ObservedObject var participantViewModel: ParticipantViewModel
+    @ObservedObject var packingListViewModel: PackingListViewModel
+    @Binding var showLeaveConfirmation: Bool
     
     var body: some View {
         VStack {
@@ -118,6 +153,19 @@ private struct HeaderView: View {
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
                 Spacer()
+                
+                let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+                let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+                
+                if userRole != "owner" {
+                    Button(action: {
+                        showLeaveConfirmation = true
+                    }) {
+                        Image(systemName: "rectangle.portrait.and.arrow.forward.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
             }
             .padding(.bottom, 20)
         }
@@ -128,10 +176,13 @@ private struct HeaderView: View {
 // MARK: - Participants List View
 private struct ParticipantsListView: View {
     @ObservedObject var participantViewModel: ParticipantViewModel
-    @ObservedObject var packingListViewModel: PackingListViewModel // Thêm tham số
-    let tripId: Int
+    @ObservedObject var packingListViewModel: PackingListViewModel
+    let trip: TripModel
     
     var body: some View {
+        let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+        let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+        
         List {
             ForEach(Array(participantViewModel.participants.enumerated()), id: \.1.id) { index, participant in
                 MemberRow(member: participant)
@@ -139,18 +190,20 @@ private struct ParticipantsListView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(index % 2 == 0 ? Color("dark") : Color("light"))
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            participantViewModel.removeParticipant(
-                                tripId: tripId,
-                                tripParticipantId: participant.id,
-                                packingListViewModel: packingListViewModel // Truyền packingListViewModel
-                            ) {
-                                print("✅ Hoàn tất xóa participant trong giao diện")
+                        if userRole == "owner" && participant.user.id != currentUserId {
+                            Button(role: .destructive) {
+                                participantViewModel.removeParticipant(
+                                    tripId: trip.id,
+                                    tripParticipantId: participant.id,
+                                    packingListViewModel: packingListViewModel
+                                ) {
+                                    print("✅ Hoàn tất xóa participant trong giao diện")
+                                }
+                            } label: {
+                                Label("Xóa", systemImage: "trash")
                             }
-                        } label: {
-                            Label("Xóa", systemImage: "trash")
+                            .tint(.red)
                         }
-                        .tint(.red)
                     }
             }
         }

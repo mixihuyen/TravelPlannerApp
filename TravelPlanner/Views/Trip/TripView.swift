@@ -107,8 +107,3 @@ struct TripView: View {
     }
     
 }
-
-#Preview {
-    TripView()
-        .environmentObject(NavigationManager())
-}

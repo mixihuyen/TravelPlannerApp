@@ -16,6 +16,7 @@ struct EditActivityView: View {
     @State private var actualCost: Double
     @State private var note: String
     @State private var showDeleteAlert = false
+    @State private var isSubmitting: Bool = false
     
     init(selectedDate: Date, trip: TripModel, activity: TripActivity, tripDayId: Int) {
         self.selectedDate = selectedDate
@@ -200,17 +201,8 @@ struct EditActivityView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(activityName.isEmpty)
+        .disabled(isSubmitting || activityName.isEmpty || endTime <= startTime)
         .padding(.horizontal)
-    }
-    
-    private func deleteActivity() {
-        viewModel.deleteActivity(activityId: activity.id, tripDayId: tripDayId) {
-            print("📋 Đã xóa hoạt động và làm mới danh sách")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.navManager.goBack()
-            }
-        }
     }
     
     private func updateActivity() {
@@ -218,6 +210,18 @@ struct EditActivityView: View {
             viewModel.showToast(message: "Vui lòng nhập tên hoạt động")
             return
         }
+        
+        guard endTime > startTime else {
+            viewModel.showToast(message: "Thời gian kết thúc phải sau thời gian bắt đầu")
+            return
+        }
+        
+        guard estimatedCost >= 0, actualCost >= 0 else {
+            viewModel.showToast(message: "Chi phí không được âm")
+            return
+        }
+        
+        isSubmitting = true
         
         let updatedActivity = TripActivity(
             id: activity.id,
@@ -233,19 +237,34 @@ struct EditActivityView: View {
             updatedAt: activity.updatedAt,
             images: activity.images ?? []
         )
-        viewModel.clearCache()
         
         viewModel.updateActivity(trip: trip, date: selectedDate, activity: updatedActivity) { result in
-            switch result {
-            case .success(let updatedActivity):
-                print("✅ Đã cập nhật hoạt động: \(updatedActivity.activity)")
+            DispatchQueue.main.async {
+                isSubmitting = false
+                switch result {
+                case .success(let updatedActivity):
+                    print("✅ Đã cập nhật hoạt động: \(updatedActivity.activity)")
+                    viewModel.showToast(message: "Đã cập nhật hoạt động: \(updatedActivity.activity)")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.navManager.goBack()
+                    }
+                case .failure(let error):
+                    print("❌ Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
+                    viewModel.showToast(message: "Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    private func deleteActivity() {
+        isSubmitting = true
+        viewModel.deleteActivity(activityId: activity.id, tripDayId: tripDayId) {
+            DispatchQueue.main.async {
+                isSubmitting = false
+                print("📋 Đã xóa hoạt động và làm mới danh sách")
+                viewModel.showToast(message: "Đã xóa hoạt động")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.navManager.goBack()
-                }
-            case .failure(let error):
-                print("❌ Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    navManager.goBack()
                 }
             }
         }

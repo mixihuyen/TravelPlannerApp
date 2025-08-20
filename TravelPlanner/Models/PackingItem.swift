@@ -1,3 +1,7 @@
+
+import Foundation
+import CoreData
+
 struct PackingItem: Identifiable, Codable, Equatable {
     let id: Int
     var name: String
@@ -29,6 +33,7 @@ struct PackingItem: Identifiable, Codable, Equatable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        // Note: id is not encoded as it is server-generated
         try container.encode(name, forKey: .name)
         try container.encode(quantity, forKey: .quantity)
         try container.encode(isShared, forKey: .isShared)
@@ -36,15 +41,48 @@ struct PackingItem: Identifiable, Codable, Equatable {
         try container.encodeIfPresent(userId, forKey: .userId)
         try container.encodeIfPresent(note, forKey: .note)
     }
+
     static func == (lhs: PackingItem, rhs: PackingItem) -> Bool {
-            return lhs.id == rhs.id &&
-                   lhs.name == rhs.name &&
-                   lhs.isPacked == rhs.isPacked &&
-                   lhs.isShared == rhs.isShared &&
-                   lhs.userId == rhs.userId &&
-                   lhs.quantity == rhs.quantity &&
-                   lhs.note == rhs.note
+        return lhs.id == rhs.id &&
+               lhs.name == rhs.name &&
+               lhs.isPacked == rhs.isPacked &&
+               lhs.isShared == rhs.isShared &&
+               lhs.userId == rhs.userId &&
+               lhs.quantity == rhs.quantity &&
+               lhs.note == rhs.note
+    }
+
+    init(from entity: PackingItemEntity) {
+            self.id = Int(entity.id)
+            self.name = entity.name ?? ""
+            self.isPacked = entity.isPacked
+            self.isShared = entity.isShared
+            self.userId = entity.userId != nil ? Int(entity.userId!.intValue) : nil // Handle optional userId
+            self.quantity = Int(entity.quantity)
+            self.note = entity.note
         }
+
+        func toEntity(context: NSManagedObjectContext, tripId: Int) -> PackingItemEntity {
+            let entity = PackingItemEntity(context: context)
+            entity.id = Int32(id) // Supports negative IDs for temporary items
+            entity.tripId = Int32(tripId)
+            entity.name = name
+            entity.quantity = Int32(quantity)
+            entity.isPacked = isPacked
+            entity.isShared = isShared
+            entity.userId = userId.map { Int32($0) as NSNumber } // Handle optional userId
+            entity.note = note
+            return entity
+        }
+}
+
+
+struct PendingItem: Codable {
+    enum Action: String, Codable {
+        case create, update, delete
+    }
+    let item: PackingItem
+    let action: Action
 }
 
 struct PackingListResponse: Codable {
@@ -76,8 +114,6 @@ struct PackingItemResponse: Codable {
         case isPacked = "is_packed"
     }
 }
-
-
 
 struct CreatePackingItemRequest: Codable {
     let name: String
@@ -112,7 +148,6 @@ struct CreatePackingItemResponse: Codable {
     let data: PackingItemResponse
 }
 
-
 struct UpdatePackingItemResponse: Codable {
     let success: Bool
     let data: UpdatePackingItemData
@@ -121,7 +156,7 @@ struct UpdatePackingItemResponse: Codable {
 struct UpdatePackingItemData: Codable {
     let updatedItem: PackingItemResponse
 }
-// MARK: - Codable Structs
+
 struct UpdatePackingItemRequest: Codable {
     let name: String
     let quantity: Int
@@ -142,7 +177,6 @@ struct UpdatePackingItemRequest: Codable {
         try container.encode(quantity, forKey: .quantity)
         try container.encode(isShared, forKey: .isShared)
         try container.encode(isPacked, forKey: .isPacked)
-        // Rõ ràng encode userId: nil thành "user_id": null
         if userId == nil {
             try container.encodeNil(forKey: .userId)
         } else {
@@ -150,6 +184,7 @@ struct UpdatePackingItemRequest: Codable {
         }
     }
 }
+
 struct DeletePackingItemResponse: Codable {
     let success: Bool
     let message: String

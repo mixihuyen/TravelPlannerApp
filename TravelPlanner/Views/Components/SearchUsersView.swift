@@ -86,8 +86,8 @@ struct SearchUsersView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text("\(participant.firstName ?? "") \(participant.lastName ?? "")")
                                             .font(.system(size: 18, weight: .bold))
-                                            .foregroundColor(.white)
-                                        Text("@\(participant.username)")
+                                            .foregroundColor(.white) 
+                                        Text("@\(participant.username ?? "Unknown")")
                                             .font(.system(size: 13))
                                             .foregroundColor(.white.opacity(0.6))
                                     }
@@ -152,7 +152,7 @@ struct SearchUsersView: View {
                                                 Text("\(user.firstName ?? "") \(user.lastName ?? "")")
                                                     .font(.system(size: 18, weight: .bold))
                                                     .foregroundColor((isAlreadyAdded || isParticipant) ? .gray : .white)
-                                                Text("@\(user.username)")
+                                                Text("@\(user.username ?? "Unknown")")
                                                     .font(.system(size: 13))
                                                     .foregroundColor((isAlreadyAdded || isParticipant) ? .gray.opacity(0.7) : .white.opacity(0.6))
                                             }

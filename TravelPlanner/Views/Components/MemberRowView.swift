@@ -45,7 +45,9 @@ struct MemberRow: View {
     private func formatRole(_ role: String) -> String {
         switch role.lowercased() {
         case "owner":
-            return "Planner"
+            return "Owner"
+        case "cashier":
+            return "Cashier"
         case "member":
             return "Member"
         default:

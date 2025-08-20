@@ -164,7 +164,7 @@ struct PackingListView: View {
             )
         }
         .onAppear {
-            viewModel.fetchPackingList()
+            viewModel.checkAndFetchIfNeeded()
             print("👥 Participants count: \(viewModel.participants.count)")
         }
     }

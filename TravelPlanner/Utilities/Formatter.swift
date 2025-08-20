@@ -63,6 +63,7 @@ struct Formatter {
         }
     }
     
+    
     static func formatDate2(_ date: Date) -> String {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.day, .weekday], from: date)
@@ -83,6 +84,25 @@ struct Formatter {
         let weekday = weekdaySymbols[weekdayIndex - 1]
         
         return "\(day)\n\(weekday)"
+    }
+    static var formatDate3: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "vi_VN")
+        formatter.dateFormat = "EEEE, d 'thg' M"
+        return formatter
+    }
+    
+    static func formatRole(_ role: String) -> String {
+        switch role.lowercased() {
+        case "owner":
+            return "Owner"
+        case "cashier":
+            return "Cashier"
+        case "member":
+            return "Member"
+        default:
+            return role.capitalized
+        }
     }
 }
 

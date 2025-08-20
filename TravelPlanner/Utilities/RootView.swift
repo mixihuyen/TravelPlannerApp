@@ -72,6 +72,7 @@ struct RootView: View {
         .environmentObject(viewModel)
         .environmentObject(navManager)
         .environmentObject(authManager)
+        .environment(\.managedObjectContext, CoreDataStack.shared.context)
     }
     
     private func getOrCreateTripDetailViewModel(for trip: TripModel) -> TripDetailViewModel {

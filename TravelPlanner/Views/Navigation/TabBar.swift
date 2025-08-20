@@ -62,7 +62,12 @@ struct TabBar: View {
             
             HStack(spacing: 5) {
                 Button(action: {
-                    showBottomSheet = true
+                    let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+                    let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+                    
+                    if userRole == "owner" {
+                        showBottomSheet = true
+                    }
                 }) {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16, weight: .bold))

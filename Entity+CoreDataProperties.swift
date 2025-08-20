@@ -22,7 +22,7 @@ extension Entity {
     @NSManaged public var quantity: Int32
     @NSManaged public var isPacked: Bool
     @NSManaged public var isShared: Bool
-    @NSManaged public var userId: Int32
+    @NSManaged public var userId: Int32?
     @NSManaged public var note: Int32
 
 }

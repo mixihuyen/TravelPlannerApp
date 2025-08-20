@@ -1,19 +1,19 @@
 import Foundation
 import Cloudinary
-
 struct CloudinaryConfig {
-    static let cloudName = "dfjxhxl6h"
-    static let apiKey = "354721246567833"
-    
-    static let uploadPreset = "travel_planner"
-    
-    static func configure() -> CLDCloudinary {
-            let config = CLDConfiguration(
-                cloudName: cloudName,
-                apiKey: apiKey,
-                // apiSecret: apiSecret, // Bỏ comment nếu dùng authenticated upload ở server
-                secure: true // Sử dụng HTTPS
-            )
-            return CLDCloudinary(configuration: config)
-        }
+    static var cloudName: String {
+        let name = Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_CLOUD_NAME") as? String ?? ""
+        print("DEBUG: CLOUDINARY_CLOUD_NAME = \(name)")
+        return name
+    }
+    static var apiKey: String {
+        let key = Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_API_KEY") as? String ?? ""
+        print("DEBUG: CLOUDINARY_API_KEY = \(key)")
+        return key
+    }
+    static var uploadPreset: String {
+        let preset = Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_UPLOAD_PRESET") as? String ?? ""
+        print("DEBUG: CLOUDINARY_UPLOAD_PRESET = \(preset)")
+        return preset
+    }
 }

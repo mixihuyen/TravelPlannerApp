@@ -5,8 +5,8 @@ struct TripParticipant: Codable, Hashable, Identifiable {
     let role: String
     let joinedAt: String
     let createdAt: String
-    let updatedAt: String
-    let user: User
+    let updatedAt: String 
+    let user: User?
 
     enum CodingKeys: String, CodingKey {
         case id

@@ -14,6 +14,7 @@ struct AddActivityView: View {
     @State private var estimatedCost: Double = 0.0
     @State private var actualCost: Double = 0.0
     @State private var note: String = ""
+    @State private var isSubmitting: Bool = false
     
     init(selectedDate: Date, trip: TripModel, tripDayId: Int) {
         self.selectedDate = selectedDate
@@ -77,7 +78,7 @@ struct AddActivityView: View {
     
     private var formView: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("THÔNG TIN CHUYẾN ĐI")
+            Text("THÔNG TIN HOẠT ĐỘNG")
                 .font(.system(size: 16))
                 .fontWeight(.bold)
                 .foregroundColor(.white)
@@ -193,7 +194,7 @@ struct AddActivityView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(activityName.isEmpty)
+        .disabled(isSubmitting || activityName.isEmpty || endTime <= startTime)
         .padding(.horizontal)
     }
     
@@ -202,6 +203,18 @@ struct AddActivityView: View {
             viewModel.showToast(message: "Vui lòng nhập tên hoạt động")
             return
         }
+        
+        guard endTime > startTime else {
+            viewModel.showToast(message: "Thời gian kết thúc phải sau thời gian bắt đầu")
+            return
+        }
+        
+        guard estimatedCost >= 0, actualCost >= 0 else {
+            viewModel.showToast(message: "Chi phí không được âm")
+            return
+        }
+        
+        isSubmitting = true
         
         let newActivity = TripActivity(
             id: 0,
@@ -215,21 +228,28 @@ struct AddActivityView: View {
             note: note,
             createdAt: "",
             updatedAt: "",
-            images:  []
+            images: []
         )
-        viewModel.clearCache()
         
         viewModel.addActivity(trip: trip, date: selectedDate, activity: newActivity) { result in
-            switch result {
-            case .success(let addedActivity):
-                print("✅ Đã thêm hoạt động: \(addedActivity.activity)")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.navManager.goBack()
-                }
-            case .failure(let error):
-                print("❌ Lỗi khi thêm hoạt động: \(error.localizedDescription)")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.navManager.goBack()
+            DispatchQueue.main.async {
+                isSubmitting = false
+                switch result {
+                case .success(let addedActivity):
+                    print("✅ Đã thêm hoạt động: \(addedActivity.activity)")
+                    viewModel.showToast(message: "Đã thêm hoạt động: \(addedActivity.activity)")
+                    // Reset form
+                    activityName = ""
+                    address = ""
+                    estimatedCost = 0.0
+                    actualCost = 0.0
+                    note = ""
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.navManager.goBack()
+                    }
+                case .failure(let error):
+                    print("❌ Lỗi khi thêm hoạt động: \(error.localizedDescription)")
+                    viewModel.showToast(message: "Lỗi khi thêm hoạt động: \(error.localizedDescription)")
                 }
             }
         }

@@ -2,14 +2,8 @@ import SwiftUI
 
 struct TripDetailView: View {
     let trip: TripModel
-    
-    @StateObject var viewModel: TripDetailViewModel
+    @EnvironmentObject var viewModel: TripDetailViewModel
     @EnvironmentObject var navManager: NavigationManager
-    init(trip: TripModel) {
-        self.trip = trip
-        _viewModel = StateObject(wrappedValue: TripDetailViewModel(trip: trip))
-    }
-    
     
     var body: some View {
         ZStack {
@@ -17,7 +11,7 @@ struct TripDetailView: View {
                 .ignoresSafeArea()
             ScrollView {
                 VStack {
-                    ZStack (alignment: .bottom) {
+                    ZStack(alignment: .bottom) {
                         if let urlString = trip.imageCoverUrl, let url = URL(string: urlString) {
                             AsyncImage(url: url) { image in
                                 image
@@ -66,7 +60,7 @@ struct TripDetailView: View {
                             Image("detail")
                                 .resizable()
                                 .frame(width: 93, height: 101)
-                            VStack (alignment: .leading) {
+                            VStack(alignment: .leading) {
                                 Text(trip.name)
                                     .font(.system(size: 20))
                                     .bold()
@@ -79,23 +73,31 @@ struct TripDetailView: View {
                             Spacer()
                         }
                         .padding(.horizontal, 20)
-                        
-                        
-                        
                     }
                     .padding(.bottom, 40)
-                    Spacer()
+                    
                     HStack {
                         VStack(spacing: 20) {
-                            if viewModel.isLoading {
+                            if viewModel.isLoading && viewModel.tripDays.isEmpty {
                                 LottieView(animationName: "loading2")
                                     .frame(width: 100, height: 100)
+                                    .padding(.top, 150)
+                            } else if viewModel.tripDays.isEmpty {
+                                Text("Không có ngày nào trong chuyến đi")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 16))
                                     .padding(.top, 150)
                             } else {
                                 ForEach(viewModel.tripDays, id: \.self) { date in
                                     Button {
-                                        let route = Route.activity(date: date, activities: viewModel.activities(for: date), trip: trip)
-                                        navManager.path.append(route)
+                                        viewModel.getTripDayId(for: date) { tripDayId in
+                                            guard let tripDayId = tripDayId else {
+                                                viewModel.showToast(message: "Không tìm thấy ngày chuyến đi")
+                                                return
+                                            }
+                                            let route = Route.activity(date: date, activities: viewModel.activities(for: date), trip: trip, tripDayId: tripDayId)
+                                            navManager.path.append(route)
+                                        }
                                     } label: {
                                         TripDayWidgetView(
                                             title: Formatter.formatDate2(date),
@@ -105,19 +107,32 @@ struct TripDetailView: View {
                                     }
                                     .buttonStyle(PlainButtonStyle())
                                 }
+                                .id(viewModel.refreshTrigger)
                             }
                         }
                     }
                     .padding(.horizontal, 20)
-                    
                 }
-                
+                .padding(.bottom, 87)
             }
-            .padding(.bottom, 87)
             .ignoresSafeArea()
+            
+            if viewModel.showToast, let toastMessage = viewModel.toastMessage {
+                VStack {
+                    Spacer()
+                    Text(toastMessage)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.black.opacity(0.8))
+                        .cornerRadius(10)
+                        .padding(.bottom, 100)
+                }
+            }
         }
-        
-        
-        
+        .onAppear {
+                    viewModel.fetchTripDays(completion: { // Sửa nhãn tham số
+                        print("📅 Đã làm mới tripDays khi TripDetailView xuất hiện")
+                    }, forceRefresh: false)
+                }
     }
 }

@@ -1,12 +1,11 @@
 import SwiftUI
 
 struct ActivityView: View {
-    @Environment(\.dismiss) var dismiss
     @EnvironmentObject var navManager: NavigationManager
     let date: Date
     let trip: TripModel
+    let tripDayId: Int
     @EnvironmentObject var viewModel: TripDetailViewModel
-    @State private var tripDayId: Int?
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -43,16 +42,17 @@ struct ActivityView: View {
                 VStack {
                     HStack {
                         Spacer()
-                        Button(action: {
-                            if let tripDayId = tripDayId {
+                        let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+                        let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+                        
+                        if userRole != "member" {
+                            Button(action: {
                                 navManager.go(to: .addActivity(date: date, trip: trip, tripDayId: tripDayId))
-                            } else {
-                                viewModel.showToast(message: "Không thể thêm hoạt động: Không tìm thấy ngày chuyến đi")
+                            }) {
+                                Image(systemName: "text.badge.plus")
+                                    .font(.system(size: 36))
+                                    .foregroundColor(.white)
                             }
-                        }) {
-                            Image(systemName: "text.badge.plus")
-                                .font(.system(size: 36))
-                                .foregroundColor(.white)
                         }
                     }
                     .padding(.bottom, 15)
@@ -91,16 +91,18 @@ struct ActivityView: View {
                             VStack(spacing: 16) {
                                 ForEach(activities, id: \.id) { activity in
                                     Button(action: {
-                                        if let tripDayId = tripDayId {
+                                        let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+                                        let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+                                        
+                                        if userRole != "member" {
                                             navManager.go(to: .editActivity(date: date, activity: activity, trip: trip, tripDayId: tripDayId))
-                                        } else {
-                                            viewModel.showToast(message: "Không thể chỉnh sửa hoạt động: Không tìm thấy ngày chuyến đi")
                                         }
                                     }) {
                                         ActivityCardView(activity: activity)
                                     }
                                 }
                             }
+                            .id(viewModel.refreshTrigger)
                         }
                     }
                 }
@@ -118,20 +120,9 @@ struct ActivityView: View {
         .navigationBarBackButtonHidden(true)
         .onAppear {
             print("📋 Kiểm tra TripDetailViewModel trong ActivityView: \(String(describing: viewModel))")
-            print("📅 Ngày được chọn: \(dateFormatter.string(from: date))")
-            viewModel.clearCache()
-            viewModel.fetchTripDays(forceRefresh: true)
-            viewModel.getTripDayId(for: date) { tripDayId in
-                self.tripDayId = tripDayId
-                if tripDayId == nil {
-                    print("❌ Không tìm thấy tripDayId cho ngày: \(dateFormatter.string(from: date))")
-                    viewModel.showToast(message: "Không tìm thấy ngày chuyến đi")
-                } else {
-                    print("✅ Đã lấy tripDayId: \(tripDayId!) cho ngày: \(dateFormatter.string(from: date))")
-                    let activities = viewModel.activities(for: date)
-                    //print("📋 Hoạt động cho ngày \(dateFormatter.string(from: date)): \(activities.map { "\($0.activity) (ID: \($0.id))" })")
-                }
-            }
+            print("📅 Ngày được chọn: \(dateFormatter.string(from: date)), tripDayId: \(tripDayId)")
+            let activities = viewModel.activities(for: date)
+            print("📋 Hoạt động cho ngày \(dateFormatter.string(from: date)): \(activities.map { "\($0.activity) (ID: \($0.id))" })")
         }
     }
 }
