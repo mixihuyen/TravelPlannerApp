@@ -33,7 +33,7 @@ struct TabBar: View {
         ZStack(alignment: .topTrailing)  {
             
             TabView {
-                TripDetailView(trip: trip)
+                TripDetailView(tripId: trip.id)
                     .tabItem {
                         Label("Lịch trình", systemImage: "calendar")
                     }

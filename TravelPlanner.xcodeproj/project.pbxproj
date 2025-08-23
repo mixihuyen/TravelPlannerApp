@@ -13,6 +13,7 @@
 		26302ADE2E476168002DAAB1 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 26302ADD2E476168002DAAB1 /* SocketIO */; };
 		2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */ = {isa = PBXBuildFile; productRef = 2649793E2E193554002A4B7B /* SwiftUICharts */; };
 		264979452E193940002A4B7B /* DGCharts in Frameworks */ = {isa = PBXBuildFile; productRef = 264979442E193940002A4B7B /* DGCharts */; };
+		26A257532E51CD4B008858F5 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 26A256FF2E51CD4B008858F5 /* .gitignore */; };
 		26DB83272E27AEA100BF6F0F /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 26DB83262E27AEA100BF6F0F /* Lottie */; };
 		26DB83382E29477100BF6F0F /* WaterfallGrid in Frameworks */ = {isa = PBXBuildFile; productRef = 26DB83372E29477100BF6F0F /* WaterfallGrid */; };
 /* End PBXBuildFile section */
@@ -38,6 +39,7 @@
 		264978602E13B439002A4B7B /* TravelPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TravelPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2649786D2E13B439002A4B7B /* TravelPlannerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TravelPlannerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		264978772E13B439002A4B7B /* TravelPlannerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TravelPlannerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		26A256FF2E51CD4B008858F5 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -107,6 +109,7 @@
 		264978572E13B439002A4B7B = {
 			isa = PBXGroup;
 			children = (
+				26A256FF2E51CD4B008858F5 /* .gitignore */,
 				264978622E13B439002A4B7B /* TravelPlanner */,
 				264978702E13B439002A4B7B /* TravelPlannerTests */,
 				2649787A2E13B439002A4B7B /* TravelPlannerUITests */,
@@ -262,6 +265,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				26A257532E51CD4B008858F5 /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

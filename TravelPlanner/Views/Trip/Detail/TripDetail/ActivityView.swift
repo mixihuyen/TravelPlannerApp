@@ -60,8 +60,13 @@ struct ActivityView: View {
                     GeometryReader { geometry in
                         let size = geometry.size.width
                         HStack {
-                            WeatherCardView()
-                                .frame(width: size * 0.35)
+                            WeatherCardView(
+                                                            tripId: trip.id,
+                                                            tripDayId: tripDayId,
+                                                            location: trip.address ?? "Đà Lạt, Lâm Đồng, Vietnam",
+                                                            date: date
+                                                        )
+                                                        .frame(width: size * 0.35)
                             
                             TotalCostCardView(
                                 totalActualCost: viewModel.calculateTotalCosts(for: date).actualCost,
