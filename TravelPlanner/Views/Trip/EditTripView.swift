@@ -177,7 +177,8 @@ struct EditTripView: View {
             startDate: start,
             endDate: end,
             address: tripAddress,
-            imageCoverUrl: trip.imageCoverUrl // Giữ nguyên imageCoverUrl từ trip ban đầu
+            imageCoverUrl: trip.imageCoverUrl,
+            imageCoverData: trip.imageCoverData // Giữ nguyên imageCoverUrl từ trip ban đầu
         ) { success in
             if success {
                 navManager.goBack()

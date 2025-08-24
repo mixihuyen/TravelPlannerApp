@@ -4,6 +4,7 @@ struct TripCardView: View {
     var trip : TripModel
     @EnvironmentObject var navManager: NavigationManager
     @StateObject private var participantViewModel = ParticipantViewModel()
+    @EnvironmentObject var tripViewModel: TripViewModel
     @State private var selectedUser: User?
     @State private var parentToastMessage = ""
     @State private var parentShowToast = false
@@ -14,7 +15,16 @@ struct TripCardView: View {
             
             GeometryReader { geo in
                 ZStack{
-                    if let urlString = trip.imageCoverUrl, let url = URL(string: urlString) {
+                    if let imageData = trip.imageCoverData, let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: 106)
+                            .mask(
+                                TripCard()
+                                    .frame(width: geo.size.width, height: 106)
+                            )
+                    } else if let urlString = trip.imageCoverUrl, let url = URL(string: urlString) {
                         AsyncImage(url: url) { image in
                             image
                                 .resizable()

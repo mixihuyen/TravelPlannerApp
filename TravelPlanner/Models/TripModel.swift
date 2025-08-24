@@ -9,6 +9,7 @@ struct TripModel: Identifiable, Codable, Hashable {
     let endDate: String
     let address: String?
     let imageCoverUrl: String?
+    var imageCoverData: Data?
     let isPublic: Bool
     let status: String
     let createdByUserId: Int
@@ -22,6 +23,7 @@ struct TripModel: Identifiable, Codable, Hashable {
         case endDate = "end_date"
         case address
         case imageCoverUrl = "image_cover_url"
+        case imageCoverData
         case isPublic = "public"
         case status
         case createdByUserId = "created_by_user_id"
@@ -36,6 +38,7 @@ struct TripModel: Identifiable, Codable, Hashable {
         endDate: String,
         address: String?,
         imageCoverUrl: String?,
+        imageCoverData: Data?,
         isPublic: Bool,
         status: String,
         createdByUserId: Int,
@@ -50,6 +53,7 @@ struct TripModel: Identifiable, Codable, Hashable {
         self.endDate = endDate
         self.address = address
         self.imageCoverUrl = imageCoverUrl
+        self.imageCoverData = imageCoverData
         self.isPublic = isPublic
         self.status = status
         self.createdByUserId = createdByUserId
@@ -77,6 +81,7 @@ struct TripModel: Identifiable, Codable, Hashable {
         entity.endDate = endDate
         entity.address = address
         entity.imageCoverUrl = imageCoverUrl
+        entity.imageCoverData = imageCoverData
         entity.isPublic = isPublic
         entity.status = status
         entity.createdByUserId = Int32(createdByUserId)
@@ -109,6 +114,7 @@ struct TripModel: Identifiable, Codable, Hashable {
         self.endDate = entity.endDate ?? ""
         self.address = entity.address ?? ""
         self.imageCoverUrl = entity.imageCoverUrl ?? ""
+        self.imageCoverData = entity.imageCoverData
         self.isPublic = entity.isPublic
         self.status = entity.status ?? "planned"
         self.createdByUserId = Int(entity.createdByUserId)
