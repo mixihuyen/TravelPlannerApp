@@ -1,19 +1,26 @@
 import SwiftUI
+import Cloudinary
+import PhotosUI
 
 struct CreateTripView: View {
-    @EnvironmentObject private var viewModel : TripViewModel
+    @EnvironmentObject private var viewModel: TripViewModel
     @EnvironmentObject var navManager: NavigationManager
     
+    @StateObject private var cloudinaryManager = CloudinaryManager()
     @State private var newTripName: String = ""
     @State private var newTripDescription: String = ""
     @State private var newTripAddress: String = ""
     @State private var newTripStartDate = Date()
     @State private var newTripEndDate = Date()
     @State private var showLocationSearch: Bool = false
-    
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
-    
+    @State private var selectedImage: UIImage? // Lưu ảnh được chọn
+    @State private var selectedPhotoItem: PhotosPickerItem? // Cho PhotosPicker
+    @State private var isUploading: Bool = false // Trạng thái upload
+    @State private var imageCoverUrl: String? // Lưu URL ảnh bìa
+    @State private var imageCoverData: Data? // Lưu dữ liệu ảnh
+
     var body: some View {
         ScrollView {
             headerView
@@ -23,22 +30,25 @@ struct CreateTripView: View {
         .background(Color.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Lỗi"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        }
     }
     
     private var headerView: some View {
-            HStack (alignment: .center, spacing: 0)  {
-                Button(action: { navManager.goBack() }) {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.white)
-                        .font(.system(size: 20))
-                }
-                Spacer()
-                Text("Tạo chuyến đi mới")
-                    .font(.system(size: 18, weight: .bold))
+        HStack(alignment: .center, spacing: 0) {
+            Button(action: { navManager.goBack() }) {
+                Image(systemName: "chevron.left")
                     .foregroundColor(.white)
-                Spacer()
+                    .font(.system(size: 20))
             }
-            .ignoresSafeArea()
+            Spacer()
+            Text("Tạo chuyến đi mới")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.white)
+            Spacer()
+        }
+        .ignoresSafeArea()
         .padding()
     }
     
@@ -48,61 +58,87 @@ struct CreateTripView: View {
                 .font(.system(size: 16))
                 .fontWeight(.bold)
                 .foregroundColor(.white)
-            VStack (alignment: .leading, spacing: 7){
+            VStack(alignment: .leading, spacing: 7) {
                 Text("Ảnh bìa")
                     .font(.system(size: 16, weight: .medium))
-                ZStack{
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                        .frame(height: 150)
-                        .frame(maxWidth: .infinity)
-                        .foregroundColor(Color.pink)
-                    Image(systemName: "photo.badge.plus")
-                        .font(.system(size: 30, weight: .bold))
-                        .foregroundColor(Color.pink)
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
+                            .frame(height: 150)
+                            .frame(maxWidth: .infinity)
+                            .foregroundColor(Color.pink)
+                        if let selectedImage = selectedImage {
+                            Image(uiImage: selectedImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(height: 150)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.Button, lineWidth: 2)
+                                )
+                        } else {
+                            Image(systemName: "photo.badge.plus")
+                                .font(.system(size: 30, weight: .bold))
+                                .foregroundColor(Color.pink)
+                        }
+                        if isUploading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(1.5)
+                        }
+                    }
                 }
                 .padding(.bottom)
+                .onChange(of: selectedPhotoItem) { newItem in
+                    Task {
+                        if let data = try? await newItem?.loadTransferable(type: Data.self),
+                           let uiImage = UIImage(data: data) {
+                            selectedImage = uiImage
+                            uploadImageToCloudinary()
+                        }
+                    }
+                }
                 
                 Text("Hãy đặt tên cho chuyến đi của bạn")
                     .font(.system(size: 16, weight: .medium))
                 CustomTextField(placeholder: "Tên chuyến đi", text: $newTripName, autocapitalization: .sentences)
                     .padding(.bottom)
                 
-                
-                // Chọn địa điểm
-                                Text("Địa điểm")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.white)
-                                Button(action: {
-                                    showLocationSearch = true
-                                }) {
-                                    HStack {
-                                        Text(newTripAddress.isEmpty ? "Chọn địa điểm" : newTripAddress)
-                                            .font(.system(size: 16))
-                                            .foregroundColor(.white)
-                                        Spacer()
-                                        Image(systemName: "magnifyingglass")
-                                            .foregroundColor(.white)
-                                    }
-                                    .padding()
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                                .stroke(Color.Button)
-                                        )
-                                }
-                                .sheet(isPresented: $showLocationSearch) {
-                                    LocationSearchView(
-                                        initialLocation: newTripAddress.isEmpty ? "Đà Lạt" : newTripAddress,
-                                        date: newTripStartDate, // Sử dụng start date cho tìm kiếm
-                                        selectedLocation: $newTripAddress
-                                    )
-                                    .presentationDetents([.medium, .large])
-                                    .presentationBackground(.clear)
-                                    .background(Color.background)
-                                    .ignoresSafeArea()
-                                }
-                                .padding(.bottom)
-                                
+                Text("Địa điểm")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
+                Button(action: {
+                    showLocationSearch = true
+                }) {
+                    HStack {
+                        Text(newTripAddress.isEmpty ? "Chọn địa điểm" : newTripAddress)
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
+                        Spacer()
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.white)
+                    }
+                    .padding()
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.Button)
+                    )
+                }
+                .sheet(isPresented: $showLocationSearch) {
+                    LocationSearchView(
+                        initialLocation: newTripAddress.isEmpty ? "Đà Lạt" : newTripAddress,
+                        date: newTripStartDate,
+                        selectedLocation: $newTripAddress
+                    )
+                    .presentationDetents([.medium, .large])
+                    .presentationBackground(.clear)
+                    .background(Color.background)
+                    .ignoresSafeArea()
+                }
+                .padding(.bottom)
                 
                 Text("Hãy thêm mô tả cho chuyến đi của bạn")
                     .font(.system(size: 16, weight: .medium))
@@ -114,19 +150,13 @@ struct CreateTripView: View {
                     .padding(.bottom, 30)
                 
                 addButton
-                
             }
             .font(.system(size: 16))
             .foregroundColor(.white)
             .padding(10)
-            
-            
         }
         .padding(.horizontal)
     }
-    
-    
-
     
     private var addButton: some View {
         Button(action: addTrip) {
@@ -137,12 +167,35 @@ struct CreateTripView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(newTripName.isEmpty)
+        .disabled(newTripName.isEmpty || isUploading)
         .padding(.horizontal)
     }
     
-
     // MARK: - Logic
+    
+    private func uploadImageToCloudinary() {
+            guard let image = selectedImage else {
+                isUploading = false
+                showAlert = true
+                alertMessage = "Không có ảnh được chọn"
+                return
+            }
+            isUploading = true
+            cloudinaryManager.uploadImageCover(image: image) { result in
+                DispatchQueue.main.async {
+                    isUploading = false
+                    switch result {
+                    case .success(let (url, _, data)):
+                        self.imageCoverUrl = url
+                        self.imageCoverData = data
+                        print("📸 Uploaded image, URL: \(url), imageData size: \(data.count) bytes")
+                    case .failure(let error):
+                        self.showAlert = true
+                        self.alertMessage = "Lỗi khi upload ảnh: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
     
     private func addTrip() {
         guard !newTripName.isEmpty else {
@@ -165,7 +218,9 @@ struct CreateTripView: View {
             description: newTripDescription.isEmpty ? nil : newTripDescription,
             startDate: start,
             endDate: end,
-            address: newTripAddress
+            address: newTripAddress,
+            imageCoverUrl: imageCoverUrl,
+            imageCoverData: imageCoverData
         )
         
         resetForm()
@@ -181,6 +236,9 @@ struct CreateTripView: View {
         newTripAddress = ""
         newTripStartDate = Date()
         newTripEndDate = Date()
-        
+        selectedImage = nil
+        selectedPhotoItem = nil
+        imageCoverUrl = nil
+        imageCoverData = nil
     }
 }

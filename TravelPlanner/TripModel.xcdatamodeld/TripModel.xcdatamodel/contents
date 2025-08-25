@@ -25,6 +25,7 @@
         <attribute name="des" optional="YES" attributeType="String"/>
         <attribute name="endDate" optional="YES" attributeType="String"/>
         <attribute name="id" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="imageCoverData" optional="YES" attributeType="Binary"/>
         <attribute name="imageCoverUrl" optional="YES" attributeType="String"/>
         <attribute name="isPublic" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>

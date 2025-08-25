@@ -18,7 +18,19 @@ struct TripDetailView: View {
                 ScrollView {
                     VStack {
                         ZStack(alignment: .bottom) {
-                            if let urlString = trip.imageCoverUrl, let url = URL(string: urlString) {
+                            if let imageData = trip.imageCoverData, let uiImage = UIImage(data: imageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(height: 200)
+                                    .ignoresSafeArea()
+                                    .mask(
+                                        Rectangle()
+                                            .fill(Color.retangleBackground)
+                                            .frame(height: 200)
+                                            .ignoresSafeArea()
+                                    )
+                            } else if let urlString = trip.imageCoverUrl, let url = URL(string: urlString) {
                                 AsyncImage(url: url) { image in
                                     image
                                         .resizable()
