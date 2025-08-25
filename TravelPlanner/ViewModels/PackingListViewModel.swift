@@ -29,9 +29,11 @@ class PackingListViewModel: ObservableObject {
     private let coreDataStack = CoreDataStack.shared
     private let ttl: TimeInterval = 300 // 5 phút
     private var lastParticipantsHash: String? // So sánh participants để tránh trigger lặp
+    private let currentUserId: Int // Giả sử userId của người dùng hiện tại được lưu trữ
 
     init(tripId: Int) {
         self.tripId = tripId
+        self.currentUserId = UserDefaults.standard.integer(forKey: "userId") // Lấy userId hiện tại
         self.participantViewModel = ParticipantViewModel()
         setupNetworkMonitor()
         loadPendingItems()
@@ -78,7 +80,6 @@ class PackingListViewModel: ObservableObject {
                 }
             }
         }
-        
     }
 
     private func isCacheExpired() -> Bool {
@@ -280,20 +281,24 @@ class PackingListViewModel: ObservableObject {
             completion?()
             return
         }
-        
-        if let userId = userId, isOffline {
-            showToast(message: "Không thể gán người dùng khi offline")
+
+        // Chặn tạo vật dụng trong tab Chung khi offline
+        if isShared && isOffline {
+            showToast(message: "Không thể tạo vật dụng trong tab Chung khi offline")
             return
         }
 
-        // Tạo temp id nếu cần, nhưng giả sử server generate id, dùng temp negative id
+        // Gán userId cho tab Cá nhân nếu không truyền userId
+        let effectiveUserId = isShared ? userId : (userId ?? currentUserId)
+
+        // Tạo temp id
         let tempId = generateTempId()
         let newItem = PackingItem(
             id: tempId,
             name: name,
             isPacked: isPacked,
             isShared: isShared,
-            userId: userId,
+            userId: effectiveUserId,
             quantity: quantity,
             note: nil
         )
@@ -316,7 +321,6 @@ class PackingListViewModel: ObservableObject {
         
         guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/items"),
               let token = UserDefaults.standard.string(forKey: "authToken") else {
-            // Rollback nếu fail
             removeItem(with: tempId)
             saveToCache(packingList: packingList)
             print("❌ URL hoặc token không hợp lệ")
@@ -325,7 +329,7 @@ class PackingListViewModel: ObservableObject {
             return
         }
 
-        let body = CreatePackingItemRequest(name: name, quantity: quantity, isShared: isShared, isPacked: isPacked, userId: userId)
+        let body = CreatePackingItemRequest(name: name, quantity: quantity, isShared: isShared, isPacked: isPacked, userId: effectiveUserId)
         
         do {
             let bodyData = try JSONEncoder().encode(body)
@@ -393,11 +397,15 @@ class PackingListViewModel: ObservableObject {
             onError(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Tên vật dụng rỗng"]))
             return
         }
-        
-        if userId != nil, isOffline {
-            showToast(message: "Không thể gán người dùng khi offline")
+
+        // Chặn cập nhật trong tab Chung khi offline
+        if isShared && isOffline {
+            showToast(message: "Không thể cập nhật vật dụng trong tab Chung khi offline")
             return
         }
+
+        // Gán userId cho tab Cá nhân nếu không truyền userId
+        let effectiveUserId = isShared ? userId : (userId ?? currentUserId)
 
         // Cập nhật local trước
         var updatedItem: PackingItem?
@@ -406,7 +414,7 @@ class PackingListViewModel: ObservableObject {
             packingList.sharedItems[index].quantity = quantity
             packingList.sharedItems[index].isShared = isShared
             packingList.sharedItems[index].isPacked = isPacked
-            packingList.sharedItems[index].userId = userId
+            packingList.sharedItems[index].userId = effectiveUserId
             updatedItem = packingList.sharedItems[index]
             if !isShared {
                 let movedItem = packingList.sharedItems.remove(at: index)
@@ -417,7 +425,7 @@ class PackingListViewModel: ObservableObject {
             packingList.personalItems[index].quantity = quantity
             packingList.personalItems[index].isShared = isShared
             packingList.personalItems[index].isPacked = isPacked
-            packingList.personalItems[index].userId = userId
+            packingList.personalItems[index].userId = effectiveUserId
             updatedItem = packingList.personalItems[index]
             if isShared {
                 let movedItem = packingList.personalItems.remove(at: index)
@@ -445,7 +453,7 @@ class PackingListViewModel: ObservableObject {
             return
         }
 
-        let body = UpdatePackingItemRequest(name: name, quantity: quantity, isShared: isShared, isPacked: isPacked, userId: userId)
+        let body = UpdatePackingItemRequest(name: name, quantity: quantity, isShared: isShared, isPacked: isPacked, userId: effectiveUserId)
         
         do {
             let bodyData = try JSONEncoder().encode(body)
@@ -494,12 +502,21 @@ class PackingListViewModel: ObservableObject {
     }
 
     func deletePackingItem(itemId: Int, completion: (() -> Void)? = nil) {
+        // Kiểm tra xem item có thuộc tab Chung không
+        let isShared = packingList.sharedItems.contains { $0.id == itemId }
+        
+        // Chặn xóa trong tab Chung khi offline
+        if isShared && isOffline {
+            showToast(message: "Không thể xóa vật dụng trong tab Chung khi offline")
+            return
+        }
+
         // Backup item
         var backupItem: PackingItem?
-        var isShared: Bool = false
+        var isSharedItem: Bool = false
         if let index = packingList.sharedItems.firstIndex(where: { $0.id == itemId }) {
             backupItem = packingList.sharedItems.remove(at: index)
-            isShared = true
+            isSharedItem = true
         } else if let index = packingList.personalItems.firstIndex(where: { $0.id == itemId }) {
             backupItem = packingList.personalItems.remove(at: index)
         }
@@ -520,7 +537,7 @@ class PackingListViewModel: ObservableObject {
               let token = UserDefaults.standard.string(forKey: "authToken") else {
             // Rollback
             if let item = backupItem {
-                if isShared {
+                if isSharedItem {
                     packingList.sharedItems.append(item)
                 } else {
                     packingList.personalItems.append(item)
@@ -542,7 +559,7 @@ class PackingListViewModel: ObservableObject {
                 case .failure(let error):
                     // Rollback
                     if let item = backupItem {
-                        if isShared {
+                        if isSharedItem {
                             self?.packingList.sharedItems.append(item)
                         } else {
                             self?.packingList.personalItems.append(item)
@@ -563,7 +580,7 @@ class PackingListViewModel: ObservableObject {
                 guard response.success else {
                     // Rollback
                     if let item = backupItem {
-                        if isShared {
+                        if isSharedItem {
                             self.packingList.sharedItems.append(item)
                         } else {
                             self.packingList.personalItems.append(item)
@@ -592,11 +609,17 @@ class PackingListViewModel: ObservableObject {
         case .shared:
             return packingList.sharedItems
         case .personal:
-            return packingList.personalItems
+            return packingList.personalItems.filter { $0.userId == currentUserId }
         }
     }
 
     func binding(for item: PackingItem, in tab: PackingListView.TabType) -> Binding<Bool> {
+        // Chặn check done trong tab Chung khi offline
+        if tab == .shared && isOffline {
+            showToast(message: "Không thể cập nhật trạng thái trong tab Chung khi offline")
+            return .constant(item.isPacked)
+        }
+
         switch tab {
         case .shared:
             guard let index = packingList.sharedItems.firstIndex(where: { $0.id == item.id }) else {
@@ -679,7 +702,7 @@ class PackingListViewModel: ObservableObject {
         }
         guard let participant = participants.first(where: { $0.user.id == userId }) else {
             // Update userId to nil
-            if !isOffline {
+            if !isOffline || item.isShared {
                 if let index = packingList.sharedItems.firstIndex(where: { $0.id == item.id }) {
                     packingList.sharedItems[index].userId = nil
                     updatePackingItem(
@@ -712,12 +735,7 @@ class PackingListViewModel: ObservableObject {
                     }
                 }
             } else {
-                if let index = packingList.sharedItems.firstIndex(where: { $0.id == item.id }) {
-                    packingList.sharedItems[index].userId = nil
-                    let pending = PendingItem(item: packingList.sharedItems[index], action: .update)
-                    pendingItems.append(pending)
-                    savePendingItems()
-                } else if let index = packingList.personalItems.firstIndex(where: { $0.id == item.id }) {
+                if let index = packingList.personalItems.firstIndex(where: { $0.id == item.id }) {
                     packingList.personalItems[index].userId = nil
                     let pending = PendingItem(item: packingList.personalItems[index], action: .update)
                     pendingItems.append(pending)
@@ -738,24 +756,18 @@ class PackingListViewModel: ObservableObject {
             showToast(message: "Không tìm thấy vật dụng")
             return
         }
+        // Chặn gán user trong tab Chung khi offline
+        if isOffline {
+            showToast(message: "Không thể gán người dùng trong tab Chung khi offline")
+            return
+        }
         let oldUserId = packingList.sharedItems[index].userId
         if oldUserId == userId {
             print("⚠️ No change in userId for item \(itemId)")
             return
         }
-        if userId != nil, isOffline {
-            showToast(message: "Không thể gán người dùng khi offline")
-            return
-        }
         packingList.sharedItems[index].userId = userId
         saveToCache(packingList: packingList)
-        if isOffline {
-            let pending = PendingItem(item: packingList.sharedItems[index], action: .update)
-            pendingItems.append(pending)
-            savePendingItems()
-            showToast(message: "Mạng yếu, đã lưu thay đổi offline!")
-            return
-        }
         updatePackingItem(
             itemId: itemId,
             name: packingList.sharedItems[index].name,
@@ -978,4 +990,3 @@ class PackingListViewModel: ObservableObject {
         fetchPackingList(forceRefresh: isCacheExpired())
     }
 }
-
