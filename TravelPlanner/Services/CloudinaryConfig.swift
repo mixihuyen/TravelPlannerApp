@@ -2,18 +2,21 @@ import Foundation
 import Cloudinary
 struct CloudinaryConfig {
     static var cloudName: String {
-        let name = Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_CLOUD_NAME") as? String ?? ""
-        print("DEBUG: CLOUDINARY_CLOUD_NAME = \(name)")
-        return name
+        return Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_CLOUD_NAME") as? String ?? ""
     }
     static var apiKey: String {
-        let key = Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_API_KEY") as? String ?? ""
-        print("DEBUG: CLOUDINARY_API_KEY = \(key)")
-        return key
+        return Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_API_KEY") as? String ?? ""
     }
     static var uploadPreset: String {
-        let preset = Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_UPLOAD_PRESET") as? String ?? ""
-        print("DEBUG: CLOUDINARY_UPLOAD_PRESET = \(preset)")
-        return preset
+        return Bundle.main.object(forInfoDictionaryKey: "CLOUDINARY_UPLOAD_PRESET") as? String ?? ""
+    }
+
+    static func configure() -> CLDCloudinary {
+        let config = CLDConfiguration(
+            cloudName: cloudName,
+            apiKey: apiKey,
+            secure: true
+        )
+        return CLDCloudinary(configuration: config)
     }
 }

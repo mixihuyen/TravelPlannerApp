@@ -107,3 +107,4 @@ struct TripView: View {
     }
     
 }
+

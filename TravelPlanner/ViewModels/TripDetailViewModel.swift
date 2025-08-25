@@ -27,6 +27,7 @@ class TripDetailViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let networkManager = NetworkManager()
     private var pendingActivities: [PendingActivity] = []
+    
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"

@@ -10,6 +10,8 @@
     <string>$(CLOUDINARY_API_KEY)</string>
     <key>CLOUDINARY_UPLOAD_PRESET</key>
     <string>$(CLOUDINARY_UPLOAD_PRESET)</string>
+    <key>WEATHER_API</key>
+    <string>$(WEATHER_API)</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

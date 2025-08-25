@@ -67,6 +67,40 @@ struct TripModel: Identifiable, Codable, Hashable {
         hasher.combine(id)
     }
     
+    
+    func toEntity(context: NSManagedObjectContext) -> TripEntity {
+        let entity = TripEntity(context: context)
+        entity.id = Int32(id)
+        entity.name = name
+        entity.des = description
+        entity.startDate = startDate
+        entity.endDate = endDate
+        entity.address = address
+        entity.imageCoverUrl = imageCoverUrl
+        entity.isPublic = isPublic
+        entity.status = status
+        entity.createdByUserId = Int32(createdByUserId)
+        entity.createdAt = createdAt
+        entity.updatedAt = updatedAt
+        
+        if let participants = tripParticipants, !participants.isEmpty {
+            do {
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                let data = try encoder.encode(participants)
+                entity.tripParticipants = data as NSObject
+                print("💾 Encoded \(participants.count) participants for tripId=\(id): \(participants.map { "\($0.userId):\($0.role)" })")
+            } catch {
+                print("❌ Lỗi encode tripParticipants cho tripId=\(id): \(error)")
+                entity.tripParticipants = nil
+            }
+        } else {
+            print("⚠️ No participants to encode for tripId=\(id)")
+            entity.tripParticipants = nil
+        }
+        return entity
+    }
+
     init(from entity: TripEntity) {
         self.id = Int(entity.id)
         self.name = entity.name ?? ""
@@ -80,45 +114,22 @@ struct TripModel: Identifiable, Codable, Hashable {
         self.createdByUserId = Int(entity.createdByUserId)
         self.createdAt = entity.createdAt ?? ""
         self.updatedAt = entity.updatedAt ?? ""
-        if let participantsData = entity.tripParticipants as? Data {
+        
+        if let participantsData = entity.tripParticipants as? Data, !participantsData.isEmpty {
             do {
                 let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601 // Xử lý ngày giờ
+                decoder.dateDecodingStrategy = .iso8601
                 let participants = try decoder.decode([TripParticipant].self, from: participantsData)
                 self.tripParticipants = participants
+                print("📂 Decoded \(participants.count) participants for tripId=\(id): \(participants.map { "\($0.userId):\($0.role)" })")
             } catch {
-                print("Lỗi decode tripParticipants: \(error)")
+                print("❌ Lỗi decode tripParticipants cho tripId=\(id): \(error)")
                 self.tripParticipants = []
             }
         } else {
+            print("⚠️ No participants data in cache for tripId=\(id)")
             self.tripParticipants = []
         }
-    }
-    
-    func toEntity(context: NSManagedObjectContext) -> TripEntity {
-        let entity = TripEntity(context: context)
-        entity.id = Int32(id)
-        entity.name = name
-        entity.des = description 
-        entity.startDate = startDate
-        entity.endDate = endDate
-        entity.address = address
-        entity.imageCoverUrl = imageCoverUrl
-        entity.isPublic = isPublic
-        entity.status = status
-        entity.createdByUserId = Int32(createdByUserId)
-        entity.createdAt = createdAt
-        entity.updatedAt = updatedAt
-        do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            let data = try encoder.encode(tripParticipants ?? [])
-            entity.tripParticipants = data as NSObject
-        } catch {
-            print("Lỗi encode tripParticipants: \(error)")
-            entity.tripParticipants = nil
-        }
-        return entity
     }
 }
 

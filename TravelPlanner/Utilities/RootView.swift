@@ -42,12 +42,16 @@ struct RootView: View {
                         TripView()
                     case .createTrip:
                         CreateTripView()
+                    case .editTrip(let trip): // Thêm route cho EditTripView
+                                            EditTripView(trip: trip)
+                                                .environmentObject(navManager)
+                                                .environmentObject(viewModel)
                     case .tabBarView(let trip):
                         TabBar(trip: trip)
                     case .tripDetailView(let trip):
                         // Tạo hoặc lấy TripDetailViewModel cho trip.id
                         let tripDetailViewModel = getOrCreateTripDetailViewModel(for: trip)
-                        TripDetailView(trip: trip)
+                        TripDetailView(tripId: trip.id) 
                             .environmentObject(navManager)
                             .environmentObject(tripDetailViewModel)
                     case .activity(let date, _, let trip, let tripDayId):

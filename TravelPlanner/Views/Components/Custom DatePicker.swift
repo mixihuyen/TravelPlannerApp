@@ -24,7 +24,7 @@ struct CustomDatePicker: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(RoundedRectangle(cornerRadius: 8).stroke(Color.Button))
+                .background(RoundedRectangle(cornerRadius: 10).stroke(Color.Button))
             }
             .sheet(isPresented: $showPicker) {
                 VStack {
@@ -33,18 +33,22 @@ struct CustomDatePicker: View {
                         selection: $date,
                         displayedComponents: .date
                     )
-                    .datePickerStyle(.wheel) // có thể đổi .graphical cho đẹp
+                    .datePickerStyle(.wheel)
                     .environment(\.locale, Locale(identifier: "vi_VN"))
                     .labelsHidden()
-                    .padding()
-                    
-                    Button("Xong") {
-                        showPicker = false
-                    }
-                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .padding(.bottom, 40)
+                    .padding(.horizontal)
                 }
-                .presentationDetents([.medium]) // sheet cao vừa
+                .presentationDetents([.height(300)])
+                .presentationBackground(.clear)
+                .background(Color(.lightGray))
+                .ignoresSafeArea()
+                
             }
+            
+            
         }
     }
 }

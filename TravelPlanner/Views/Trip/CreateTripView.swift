@@ -9,6 +9,7 @@ struct CreateTripView: View {
     @State private var newTripAddress: String = ""
     @State private var newTripStartDate = Date()
     @State private var newTripEndDate = Date()
+    @State private var showLocationSearch: Bool = false
     
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
@@ -68,31 +69,40 @@ struct CreateTripView: View {
                     .padding(.bottom)
                 
                 
-                Text("Địa điểm")
-                    .font(.system(size: 16, weight: .medium))
-                            CustomTextField(placeholder: "Địa chỉ", text: $newTripAddress, autocapitalization: .sentences)
-                    .padding(.bottom)
-                ZStack{
-                    Image("map")
-                        .resizable()
-                        .frame(height: 130)
-                        .frame(maxWidth: .infinity)
-                    HStack{
-                        Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 16))
-                        Text("Thêm địa điểm")
-                            .font(.system(size: 16))
-                    }
-                    
-                    .padding(3)
-                    .overlay(
-                            Rectangle()
-                                .stroke(Color.gray)
-                        )
-                    .foregroundColor(.gray)
-                }
-                .padding(.bottom)
-                
+                // Chọn địa điểm
+                                Text("Địa điểm")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.white)
+                                Button(action: {
+                                    showLocationSearch = true
+                                }) {
+                                    HStack {
+                                        Text(newTripAddress.isEmpty ? "Chọn địa điểm" : newTripAddress)
+                                            .font(.system(size: 16))
+                                            .foregroundColor(.white)
+                                        Spacer()
+                                        Image(systemName: "magnifyingglass")
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding()
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color.Button)
+                                        )
+                                }
+                                .sheet(isPresented: $showLocationSearch) {
+                                    LocationSearchView(
+                                        initialLocation: newTripAddress.isEmpty ? "Đà Lạt" : newTripAddress,
+                                        date: newTripStartDate, // Sử dụng start date cho tìm kiếm
+                                        selectedLocation: $newTripAddress
+                                    )
+                                    .presentationDetents([.medium, .large])
+                                    .presentationBackground(.clear)
+                                    .background(Color.background)
+                                    .ignoresSafeArea()
+                                }
+                                .padding(.bottom)
+                                
                 
                 Text("Hãy thêm mô tả cho chuyến đi của bạn")
                     .font(.system(size: 16, weight: .medium))
