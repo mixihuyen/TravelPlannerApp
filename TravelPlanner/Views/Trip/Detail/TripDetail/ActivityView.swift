@@ -6,14 +6,14 @@ struct ActivityView: View {
     let trip: TripModel
     let tripDayId: Int
     @EnvironmentObject var viewModel: TripDetailViewModel
-
+    
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
-
+    
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.background.ignoresSafeArea()
@@ -61,12 +61,12 @@ struct ActivityView: View {
                         let size = geometry.size.width
                         HStack {
                             WeatherCardView(
-                                                            tripId: trip.id,
-                                                            tripDayId: tripDayId,
-                                                            location: trip.address ?? "Đà Lạt, Lâm Đồng, Vietnam",
-                                                            date: date
-                                                        )
-                                                        .frame(width: size * 0.35)
+                                tripId: trip.id,
+                                tripDayId: tripDayId,
+                                location: trip.address ?? "Đà Lạt, Lâm Đồng, Vietnam",
+                                date: date
+                            )
+                            .frame(width: size * 0.35)
                             
                             TotalCostCardView(
                                 totalActualCost: viewModel.calculateTotalCosts(for: date).actualCost,
@@ -80,6 +80,7 @@ struct ActivityView: View {
                         let activities = viewModel.activities(for: date)
                         if activities.isEmpty {
                             VStack(spacing: 8) {
+                                Spacer()
                                 Image("empty")
                                     .resizable()
                                     .frame(width: 100, height: 100)
@@ -89,22 +90,19 @@ struct ActivityView: View {
                                     .foregroundColor(.gray)
                                     .font(.subheadline)
                                     .multilineTextAlignment(.center)
+                                Spacer()
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(.top, 100)
                         } else {
                             VStack(spacing: 16) {
                                 ForEach(activities, id: \.id) { activity in
-                                    Button(action: {
-                                        let currentUserId = UserDefaults.standard.integer(forKey: "userId")
-                                        let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
-                                        
-                                        if userRole != "member" {
-                                            navManager.go(to: .editActivity(date: date, activity: activity, trip: trip, tripDayId: tripDayId))
-                                        }
-                                    }) {
-                                        ActivityCardView(activity: activity)
-                                    }
+                                    ActivityCardView(
+                                        activity: activity,
+                                        date: date,
+                                        tripId: trip.id,
+                                        trip: trip,
+                                        tripDayId: tripDayId
+                                    )
                                 }
                             }
                             .id(viewModel.refreshTrigger)
@@ -115,8 +113,8 @@ struct ActivityView: View {
             }
             .overlay(
                 Group {
-                    if viewModel.showToast, let message = viewModel.toastMessage {
-                        SuccessToastView(message: message)
+                    if viewModel.showToast, let message = viewModel.toastMessage, let type = viewModel.toastType {
+                        ToastView(message: message, type: type)
                     }
                 },
                 alignment: .bottom

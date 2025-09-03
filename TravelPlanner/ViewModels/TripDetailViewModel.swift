@@ -23,7 +23,7 @@ class TripDetailViewModel: ObservableObject {
     @Published var toastMessage: String? = nil
     @Published var showToast: Bool = false
     @Published var refreshTrigger: UUID = UUID()
-    private var webSocketManager: WebSocketManager?
+    @Published var toastType: ToastType?
     private var cancellables = Set<AnyCancellable>()
     private let networkManager = NetworkManager()
     private var pendingActivities: [PendingActivity] = []
@@ -36,7 +36,7 @@ class TripDetailViewModel: ObservableObject {
     }()
     private let cacheExpirationSeconds: TimeInterval = 1800 // 30 phút
     private let reachability = try? NWPathMonitor()
-    private let coreDataStack = CoreDataStack.shared // Thêm CoreDataStack
+    private let coreDataStack = CoreDataStack.shared // Thêm CoreDataStack 
 
     init(trip: TripModel) {
         self.trip = trip
@@ -174,8 +174,7 @@ class TripDetailViewModel: ObservableObject {
         saveToCache(tripDays: tripDaysData)
         objectWillChange.send()
         refreshTrigger = UUID()
-        showToast(message: "Đã thêm hoạt động cục bộ: \(newActivity.activity)")
-        print("📅 Đã thêm hoạt động cục bộ: \(newActivity.activity)")
+        showToast(message: "Đã thêm hoạt động cục bộ: \(newActivity.activity)", type: .success)
 
         if !isNetworkAvailable() {
             print("🌐 Mất mạng, lưu hoạt động vào pending activities")
@@ -223,7 +222,7 @@ class TripDetailViewModel: ObservableObject {
                 switch completionResult {
                 case .failure(let error):
                     print("❌ Lỗi khi thêm hoạt động qua API: \(error.localizedDescription)")
-                    self?.showToast(message: "Lỗi khi đồng bộ hoạt động với server")
+                    self?.showToast(message: "Lỗi khi đồng bộ hoạt động với server", type: ToastType.error)
                     self?.removeActivityFromTripDays(activityId: newActivity.id, tripDayId: tripDay.id)
                     self?.saveToCache(tripDays: self?.tripDaysData ?? [])
                     self?.objectWillChange.send()
@@ -237,7 +236,7 @@ class TripDetailViewModel: ObservableObject {
                 if let addedActivity = response.data {
                     if self.isActivityEqual(localActivity: newActivity, serverActivity: addedActivity) {
                         print("✅ Dữ liệu hoạt động từ API khớp với cục bộ: \(addedActivity.activity)")
-                        self.showToast(message: "Đã đồng bộ hoạt động: \(addedActivity.activity)")
+                        self.showToast(message: "Đã đồng bộ hoạt động: \(addedActivity.activity)", type: .success)
                         completion(.success(addedActivity))
                     } else {
                         print("⚠️ Dữ liệu hoạt động không khớp, cập nhật với dữ liệu từ API")
@@ -245,13 +244,13 @@ class TripDetailViewModel: ObservableObject {
                         self.saveToCache(tripDays: self.tripDaysData)
                         self.objectWillChange.send()
                         self.refreshTrigger = UUID()
-                        self.showToast(message: "Đã cập nhật hoạt động từ server: \(addedActivity.activity)")
+                        self.showToast(message: "Đã cập nhật hoạt động từ server: \(addedActivity.activity)", type: ToastType.success)
                         completion(.success(addedActivity))
                     }
                 } else {
                     let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Không nhận được dữ liệu hoạt động"])
                     print("❌ Không nhận được dữ liệu hoạt động từ API")
-                    self.showToast(message: "Đồng bộ hoạt động thất bại")
+                    self.showToast(message: "Đồng bộ hoạt động thất bại", type: ToastType.error)
                     self.removeActivityFromTripDays(activityId: newActivity.id, tripDayId: tripDay.id)
                     self.saveToCache(tripDays: self.tripDaysData)
                     self.objectWillChange.send()
@@ -282,7 +281,7 @@ class TripDetailViewModel: ObservableObject {
         saveToCache(tripDays: tripDaysData)
         objectWillChange.send()
         refreshTrigger = UUID()
-        showToast(message: "Đã cập nhật hoạt động cục bộ: \(activity.activity)")
+        showToast(message: "Đã cập nhật hoạt động cục bộ: \(activity.activity)", type: ToastType.success)
         print("📅 Đã cập nhật hoạt động cục bộ: \(activity.activity)")
 
         if !isNetworkAvailable() {
@@ -332,12 +331,12 @@ class TripDetailViewModel: ObservableObject {
                 case .failure(let error as NSError):
                     print("❌ Lỗi khi cập nhật hoạt động qua API: \(error.localizedDescription)")
                     if error.code == -1011 { // 403 Forbidden
-                        self?.showToast(message: "Bạn không có quyền cập nhật hoạt động này")
+                        self?.showToast(message: "Bạn không có quyền cập nhật hoạt động này", type: ToastType.error)
                         self?.fetchTripDays(forceRefresh: true)
                         self?.objectWillChange.send()
                         self?.refreshTrigger = UUID()
                     } else {
-                        self?.showToast(message: "Lỗi khi đồng bộ hoạt động: \(error.localizedDescription)")
+                        self?.showToast(message: "Lỗi khi đồng bộ hoạt động: \(error.localizedDescription)", type: .error)
                         self?.fetchTripDays(forceRefresh: true)
                         self?.objectWillChange.send()
                         self?.refreshTrigger = UUID()
@@ -351,7 +350,7 @@ class TripDetailViewModel: ObservableObject {
                 if let updatedActivity = response.data?.updatedActivity {
                     if self.isActivityEqual(localActivity: activity, serverActivity: updatedActivity) {
                         print("✅ Dữ liệu cập nhật từ API khớp với cục bộ: \(updatedActivity.activity)")
-                        self.showToast(message: "Đã đồng bộ hoạt động: \(updatedActivity.activity)")
+                        self.showToast(message: "Đã đồng bộ hoạt động: \(updatedActivity.activity)", type: .success)
                         completion(.success(updatedActivity))
                     } else {
                         print("⚠️ Dữ liệu cập nhật không khớp, cập nhật với dữ liệu từ API")
@@ -359,13 +358,13 @@ class TripDetailViewModel: ObservableObject {
                         self.saveToCache(tripDays: self.tripDaysData)
                         self.objectWillChange.send()
                         self.refreshTrigger = UUID()
-                        self.showToast(message: "Đã cập nhật hoạt động từ server: \(updatedActivity.activity)")
+                        self.showToast(message: "Đã cập nhật hoạt động từ server: \(updatedActivity.activity)", type: .success)
                         completion(.success(updatedActivity))
                     }
                 } else {
                     let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Không nhận được dữ liệu hoạt động"])
                     print("❌ Không nhận được dữ liệu hoạt động từ API")
-                    self.showToast(message: "Đồng bộ hoạt động thất bại")
+                    self.showToast(message: "Đồng bộ hoạt động thất bại", type: ToastType.error)
                     self.fetchTripDays(forceRefresh: true)
                     self.objectWillChange.send()
                     self.refreshTrigger = UUID()
@@ -378,14 +377,14 @@ class TripDetailViewModel: ObservableObject {
     func deleteActivity(activityId: Int, tripDayId: Int, completion: @escaping () -> Void) {
         guard isNetworkAvailable() else {
             print("🌐 Mất mạng, không cho phép xóa hoạt động")
-            showToast(message: "Không thể xóa hoạt động khi không có kết nối mạng")
+            showToast(message: "Không thể xóa hoạt động khi không có kết nối mạng", type: .error)
             completion()
             return
         }
 
         guard let token = UserDefaults.standard.string(forKey: "authToken"),
               let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(trip.id)/days/\(tripDayId)/activities/\(activityId)") else {
-            showToast(message: "URL hoặc token không hợp lệ")
+            showToast(message: "URL hoặc token không hợp lệ", type: ToastType.error)
             completion()
             return
         }
@@ -400,9 +399,9 @@ class TripDetailViewModel: ObservableObject {
                 case .failure(let error as NSError):
                     print("❌ Lỗi khi xóa hoạt động: \(error.localizedDescription)")
                     if error.code == -1011 { // 403 Forbidden
-                        self?.showToast(message: "Bạn không có quyền xóa hoạt động này")
+                        self?.showToast(message: "Bạn không có quyền xóa hoạt động này", type: .error)
                     } else {
-                        self?.showToast(message: "Lỗi khi xóa hoạt động: \(error.localizedDescription)")
+                        self?.showToast(message: "Lỗi khi xóa hoạt động: \(error.localizedDescription)", type: ToastType.error)
                     }
                     completion()
                 case .finished:
@@ -415,10 +414,10 @@ class TripDetailViewModel: ObservableObject {
                     self.saveToCache(tripDays: self.tripDaysData)
                     self.objectWillChange.send()
                     self.refreshTrigger = UUID()
-                    self.showToast(message: response.message ?? "Đã xóa hoạt động")
+                    self.showToast(message: response.message ?? "Đã xóa hoạt động", type: ToastType.success)
                     completion()
                 } else {
-                    self.showToast(message: response.message ?? "Xóa thất bại")
+                    self.showToast(message: response.message ?? "Xóa thất bại", type: .error)
                     completion()
                 }
             }
@@ -514,7 +513,7 @@ class TripDetailViewModel: ObservableObject {
               let token = UserDefaults.standard.string(forKey: "authToken") else {
             print("❌ URL hoặc Token không hợp lệ")
             isLoading = false
-            showToast(message: "URL hoặc token không hợp lệ")
+            showToast(message: "URL hoặc token không hợp lệ", type: ToastType.error)
             completion?()
             return
         }
@@ -540,7 +539,7 @@ class TripDetailViewModel: ObservableObject {
                     print("📅 Fetch trip days thành công: \(tripDays.count) ngày")
                 } else {
                     print("⚠️ Không có dữ liệu trip days")
-                    self.showToast(message: "Không có dữ liệu ngày chuyến đi")
+                    self.showToast(message: "Không có dữ liệu ngày chuyến đi", type: .error)
                 }
                 completion?()
             }
@@ -595,7 +594,7 @@ class TripDetailViewModel: ObservableObject {
                     print("Không tìm thấy lỗi chi tiết trong userInfo")
                 }
             }
-            showToast(message: "Lỗi khi lưu cache dữ liệu")
+            showToast(message: "Lỗi khi lưu cache dữ liệu", type: .error)
         }
     }
 
@@ -611,7 +610,7 @@ class TripDetailViewModel: ObservableObject {
             return tripDays.isEmpty ? nil : tripDays
         } catch {
             print("❌ Lỗi khi đọc cache: \(error.localizedDescription)")
-            showToast(message: "Dữ liệu cache bị lỗi")
+            showToast(message: "Dữ liệu cache bị lỗi", type: .error)
             return nil
         }
     }
@@ -634,7 +633,7 @@ class TripDetailViewModel: ObservableObject {
                     print("🔍 Lỗi decode không xác định")
                 }
             }
-            showToast(message: "Lỗi khi tải dữ liệu ngày chuyến đi")
+            showToast(message: "Lỗi khi tải dữ liệu ngày chuyến đi", type: .error)
         case .finished:
             print("✅ Fetch trip days hoàn tất")
         }
@@ -648,23 +647,25 @@ class TripDetailViewModel: ObservableObject {
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
         do {
             try context.execute(deleteRequest)
-            try context.save()
+            coreDataStack.saveContext() // Sử dụng saveContext từ CoreDataStack
             print("🗑️ Đã xóa cache trip days cho tripId=\(trip.id)")
         } catch {
             print("❌ Lỗi khi xóa cache: \(error.localizedDescription)")
         }
     }
 
-    func showToast(message: String) {
-        print("📢 Đặt toast: \(message)")
-        DispatchQueue.main.async {
-            self.toastMessage = message
-            self.showToast = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                print("📢 Ẩn toast")
-                self.showToast = false
-                self.toastMessage = nil
+    func showToast(message: String, type: ToastType) {
+            print("📢 Đặt toast: \(message) với type: \(type)")
+            DispatchQueue.main.async {
+                self.toastMessage = message
+                self.toastType = type
+                self.showToast = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                    print("📢 Ẩn toast")
+                    self.showToast = false
+                    self.toastMessage = nil
+                    self.toastType = nil
+                }
             }
         }
-    }
 }

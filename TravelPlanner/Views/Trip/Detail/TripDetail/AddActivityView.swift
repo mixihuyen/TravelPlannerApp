@@ -15,6 +15,8 @@ struct AddActivityView: View {
     @State private var actualCost: Double = 0.0
     @State private var note: String = ""
     @State private var isSubmitting: Bool = false
+    @State private var showAlert: Bool = false
+    @State private var alertMessage: String = ""
     
     init(selectedDate: Date, trip: TripModel, tripDayId: Int) {
         self.selectedDate = selectedDate
@@ -51,6 +53,13 @@ struct AddActivityView: View {
         .background(Color.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text("Lỗi"),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("OK"))
+            )
+        }
         .gesture(
             TapGesture()
                 .onEnded { _ in
@@ -88,14 +97,14 @@ struct AddActivityView: View {
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                 CustomTextField(placeholder: "", text: $activityName, autocapitalization: .sentences, showIconImage: true,
-                               imageName: "activity")
-                    .padding(.bottom, 10)
+                                imageName: "activity")
+                .padding(.bottom, 10)
                 
                 Text("Địa điểm")
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                 CustomTextField(placeholder: "", text: $address, autocapitalization: .sentences, showIconImage: true,
-                               imageName: "address", height: 80, isMultiline: true)
+                                imageName: "address", height: 80, isMultiline: true)
             }
             .padding(.horizontal)
             .padding(.bottom, 5)
@@ -194,23 +203,33 @@ struct AddActivityView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(isSubmitting || activityName.isEmpty || endTime <= startTime)
+        .disabled(isSubmitting )
         .padding(.horizontal)
     }
     
     private func addActivity() {
         guard !activityName.isEmpty else {
-            viewModel.showToast(message: "Vui lòng nhập tên hoạt động")
+            alertMessage = "Vui lòng nhập tên hoạt động"
+            showAlert = true
+            return
+        }
+        
+        guard !address.isEmpty else {
+            alertMessage = "Vui lòng nhập địa điểm"
+            showAlert = true
             return
         }
         
         guard endTime > startTime else {
-            viewModel.showToast(message: "Thời gian kết thúc phải sau thời gian bắt đầu")
+            alertMessage = "Thời gian kết thúc phải sau thời gian bắt đầu"
+            showAlert = true
             return
         }
         
         guard estimatedCost >= 0, actualCost >= 0 else {
-            viewModel.showToast(message: "Chi phí không được âm")
+            alertMessage = "Chi phí không được âm"
+            showAlert = true
+            
             return
         }
         
@@ -236,8 +255,7 @@ struct AddActivityView: View {
                 isSubmitting = false
                 switch result {
                 case .success(let addedActivity):
-                    print("✅ Đã thêm hoạt động: \(addedActivity.activity)")
-                    viewModel.showToast(message: "Đã thêm hoạt động: \(addedActivity.activity)")
+                    viewModel.showToast(message: "Đã thêm hoạt động: \(addedActivity.activity)", type: .success)
                     // Reset form
                     activityName = ""
                     address = ""
@@ -249,7 +267,7 @@ struct AddActivityView: View {
                     }
                 case .failure(let error):
                     print("❌ Lỗi khi thêm hoạt động: \(error.localizedDescription)")
-                    viewModel.showToast(message: "Lỗi khi thêm hoạt động: \(error.localizedDescription)")
+                    viewModel.showToast(message: "Lỗi khi thêm hoạt động: \(error.localizedDescription)", type: .error)
                 }
             }
         }

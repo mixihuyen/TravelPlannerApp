@@ -60,6 +60,7 @@ struct PackingListView: View {
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 viewModel.deletePackingItem(itemId: item.id) {
+                                    viewModel.showToast(message: "Đã xóa vật dụng", type: .success)
                                     print("✅ Deleted item: \(item.name) (ID: \(item.id))")
                                 }
                             } label: {
@@ -71,7 +72,6 @@ struct PackingListView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-
             }
             .padding(.horizontal)
             .alert("Thêm vật dụng mới", isPresented: Binding(
@@ -90,6 +90,7 @@ struct PackingListView: View {
                         isShared: selectedTab == .shared,
                         isPacked: false
                     ) {
+                        viewModel.showToast(message: "Đã thêm vật dụng: \(newItemName)", type: .success)
                         print("✅ Created new item: \(newItemName)")
                     }
                     newItemName = ""
@@ -97,7 +98,6 @@ struct PackingListView: View {
             } message: {
                 Text("Nhập tên vật dụng mới")
             }
-
             .alert("Chỉnh sửa tên vật dụng", isPresented: Binding(
                 get: { showEditNameAlert && selectedItem != nil },
                 set: { if !$0 { showEditNameAlert = false } }
@@ -138,6 +138,7 @@ struct PackingListView: View {
                                 isPacked: item.isPacked,
                                 userId: selectedAssignee
                             ) {
+                                viewModel.showToast(message: "Đã phân công vật dụng: \(item.name)", type: .success)
                                 print("✅ Assigned item \(item.name) to user \(String(describing: selectedAssignee))")
                             }
                         }
@@ -146,6 +147,7 @@ struct PackingListView: View {
                     onCancel: {
                         showAssignModal = false
                         hasSavedAssignee = false
+                        selectedAssignee = nil
                         print("🚫 Canceled assignment")
                     }
                 )
@@ -156,8 +158,8 @@ struct PackingListView: View {
             }
             .overlay(
                 Group {
-                    if viewModel.showToast, let message = viewModel.toastMessage {
-                        SuccessToastView(message: message)
+                    if viewModel.showToast, let message = viewModel.toastMessage, let type = viewModel.toastType {
+                        ToastView(message: message, type: type)
                     }
                 },
                 alignment: .bottom
@@ -171,6 +173,7 @@ struct PackingListView: View {
     
     private func updateItemName(item: PackingItem) {
         guard !newItemName.isEmpty else {
+            viewModel.showToast(message: "Tên vật dụng không được để trống", type: .error)
             print("⚠️ Empty item name")
             return
         }
@@ -182,6 +185,7 @@ struct PackingListView: View {
             isPacked: item.isPacked,
             userId: item.userId
         ) {
+            viewModel.showToast(message: "Đã cập nhật vật dụng: \(newItemName)", type: .success)
             print("✅ Updated item name: \(newItemName)")
         }
     }

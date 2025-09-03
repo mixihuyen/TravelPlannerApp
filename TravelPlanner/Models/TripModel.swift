@@ -64,12 +64,38 @@ struct TripModel: Identifiable, Codable, Hashable {
     
     
     static func == (lhs: TripModel, rhs: TripModel) -> Bool {
-        lhs.id == rhs.id
-    }
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
+            return lhs.id == rhs.id &&
+                   lhs.name == rhs.name &&
+                   lhs.description == rhs.description &&
+                   lhs.startDate == rhs.startDate &&
+                   lhs.endDate == rhs.endDate &&
+                   lhs.address == rhs.address &&
+                   lhs.imageCoverUrl == rhs.imageCoverUrl &&
+                   lhs.imageCoverData == rhs.imageCoverData &&
+                   lhs.isPublic == rhs.isPublic &&
+                   lhs.status == rhs.status &&
+                   lhs.createdByUserId == rhs.createdByUserId &&
+                   lhs.createdAt == rhs.createdAt &&
+                   lhs.updatedAt == rhs.updatedAt &&
+                   lhs.tripParticipants == rhs.tripParticipants
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(id)
+            hasher.combine(name)
+            hasher.combine(description)
+            hasher.combine(startDate)
+            hasher.combine(endDate)
+            hasher.combine(address)
+            hasher.combine(imageCoverUrl)
+            hasher.combine(imageCoverData)
+            hasher.combine(isPublic)
+            hasher.combine(status)
+            hasher.combine(createdByUserId)
+            hasher.combine(createdAt)
+            hasher.combine(updatedAt)
+            hasher.combine(tripParticipants)
+        }
     
     
     func toEntity(context: NSManagedObjectContext) -> TripEntity {

@@ -24,26 +24,7 @@ struct TripCardView: View {
                                 TripCard()
                                     .frame(width: geo.size.width, height: 106)
                             )
-                    } else if let urlString = trip.imageCoverUrl, let url = URL(string: urlString) {
-                        AsyncImage(url: url) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: geo.size.width, height: 106)
-                                .mask(
-                                    TripCard()
-                                        .frame(width: geo.size.width, height: 106)
-                                )
-                        } placeholder: {
-                            Image("default_image")
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: geo.size.width, height: 106)
-                                .mask(
-                                    TripCard()
-                                        .frame(width: geo.size.width, height: 106)
-                                )
-                        }
+                   
                     } else {
                         Image("default_image")
                             .resizable()
@@ -60,15 +41,27 @@ struct TripCardView: View {
                         .frame(width: geo.size.width, height: 106)
                     HStack {
                         VStack(alignment: .leading) {
-                            let currentUserId = UserDefaults.standard.integer(forKey: "userId")
-                            let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
-                            Text(userRole)
-                                .font(.caption)
-                                .foregroundColor(Color.pink)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.background.opacity(0.8))
-                                .cornerRadius(20)
+                            HStack{
+                                let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+                                let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+                                Text(userRole)
+                                    .font(.caption)
+                                    .foregroundColor(Color.pink)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.background.opacity(0.8))
+                                    .cornerRadius(20)
+                                
+                                Image(systemName: "globe.europe.africa.fill")
+                                    .foregroundColor(Color.white)
+                                    .frame(width: 16, height: 16)
+                                
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(Color.white)
+                                    .frame(width: 16, height: 16)
+                                
+                            }
+                            
                             Text(trip.name)
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(Color.white)

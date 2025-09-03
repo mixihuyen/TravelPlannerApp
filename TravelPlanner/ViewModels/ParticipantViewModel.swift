@@ -8,6 +8,7 @@ class ParticipantViewModel: ObservableObject {
     @Published var toastMessage: String? = nil
     @Published var showToast: Bool = false
     @Published var isLoading: Bool = false
+    @Published var toastType: ToastType?
     
     private var cancellables = Set<AnyCancellable>()
     private let networkManager: NetworkManager
@@ -77,7 +78,7 @@ class ParticipantViewModel: ObservableObject {
         if isOnline {
             fetchFromAPI(tripId: tripId, completion: completion)
         } else {
-            showToast(message: "Không có mạng, sử dụng dữ liệu cũ")
+            showToast(message: "Không có mạng, sử dụng dữ liệu cũ", type: .error)
             completion?()
         }
     }
@@ -85,7 +86,7 @@ class ParticipantViewModel: ObservableObject {
     private func fetchFromAPI(tripId: Int, completion: (() -> Void)? = nil) {
             guard let token,
                   let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants") else {
-                showToast(message: "Invalid token or URL")
+                showToast(message: "Invalid token or URL", type: .error)
                 completion?()
                 return
             }
@@ -100,7 +101,7 @@ class ParticipantViewModel: ObservableObject {
                     completion?()
                 } receiveValue: { [weak self] response in
                     guard response.success, let newParticipants = response.data?.participants else {
-                        self?.showToast(message: response.message ?? "Failed to load participants")
+                        self?.showToast(message: response.message ?? "Failed to load participants", type: .error)
                         return
                     }
                     // So sánh dữ liệu mới với RAM cache
@@ -150,13 +151,13 @@ class ParticipantViewModel: ObservableObject {
     func addParticipant(tripId: Int, userId: Int, completionHandler: @escaping () -> Void) {
         guard let token, !token.isEmpty,
               let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants") else {
-            showToast(message: "Invalid token or URL")
+            showToast(message: "Invalid token or URL", type: ToastType.error)
             return
         }
 
         let body = ["user_id": userId]
         guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
-            showToast(message: "Failed to encode data")
+            showToast(message: "Failed to encode data", type: .error)
             return
         }
 
@@ -168,7 +169,7 @@ class ParticipantViewModel: ObservableObject {
                 guard response.success, response.data?.tripParticipant != nil else {
                     self?.showToast(message: response.message?.contains("already") ?? false
                         ? "User already in trip"
-                        : response.message ?? "Failed to add participant")
+                                    : response.message ?? "Failed to add participant", type: .error)
                     return
                 }
                 self?.fetchParticipants(tripId: tripId, forceRefresh: true, completion: completionHandler)
@@ -198,7 +199,7 @@ class ParticipantViewModel: ObservableObject {
         guard let token = token, !token.isEmpty,
               let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants/\(tripParticipantId)") else {
             print("❌ Invalid token or URL")
-            showToast(message: "Thông tin không hợp lệ")
+            showToast(message: "Thông tin không hợp lệ", type: ToastType.error)
             completionHandler?()
             return
         }
@@ -214,7 +215,7 @@ class ParticipantViewModel: ObservableObject {
                     let errorMessage = (error as? URLError)?.code == .userAuthenticationRequired
                         ? "Bạn không có quyền xóa thành viên này"
                         : "Lỗi khi xóa thành viên: \(error.localizedDescription)"
-                    self?.showToast(message: errorMessage)
+                    self?.showToast(message: errorMessage, type: ToastType.error)
                     completionHandler?()
                 case .finished:
                     print("✅ Request completed")
@@ -230,7 +231,7 @@ class ParticipantViewModel: ObservableObject {
                         let userId = participant.user.id
                         self.participants.removeAll { $0.id == tripParticipantId }
                         self.saveToCache(participants: self.participants, tripId: tripId)
-                        self.showToast(message: response.message ?? "Đã xóa thành viên thành công!")
+                        self.showToast(message: response.message ?? "Đã xóa thành viên thành công!", type: ToastType.success)
                         
                         packingListViewModel?.unassignItemsForUser(userId: userId) {
                             UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
@@ -241,12 +242,12 @@ class ParticipantViewModel: ObservableObject {
                         }
                     } else {
                         print("⚠️ Participant with tripParticipantId=\(tripParticipantId) not found")
-                        self.showToast(message: "Không tìm thấy thành viên để xóa")
+                        self.showToast(message: "Không tìm thấy thành viên để xóa", type: ToastType.error)
                         completionHandler?()
                     }
                 } else {
                     print("❌ Failed to remove participant: \(response.message ?? "Unknown error")")
-                    self.showToast(message: response.message ?? "Lỗi khi xóa thành viên")
+                    self.showToast(message: response.message ?? "Lỗi khi xóa thành viên", type: ToastType.error)
                     completionHandler?()
                 }
             }
@@ -259,7 +260,7 @@ class ParticipantViewModel: ObservableObject {
               let userId = currentUserId,
               let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants") else {
             print("❌ Invalid token or URL")
-            showToast(message: "Không thể rời nhóm: Thông tin không hợp lệ")
+            showToast(message: "Không thể rời nhóm: Thông tin không hợp lệ", type: .error)
             completionHandler?()
             return
         }
@@ -275,7 +276,7 @@ class ParticipantViewModel: ObservableObject {
                     let errorMessage = (error as? URLError)?.code == .userAuthenticationRequired
                         ? "Bạn không có quyền rời nhóm"
                         : "Lỗi khi rời nhóm: \(error.localizedDescription)"
-                    self?.showToast(message: errorMessage)
+                    self?.showToast(message: errorMessage, type: ToastType.error)
                     completionHandler?()
                 case .finished:
                     print("✅ Successfully completed request")
@@ -289,7 +290,7 @@ class ParticipantViewModel: ObservableObject {
                 if response.success {
                     self.participants.removeAll { $0.user.id == userId }
                     self.saveToCache(participants: self.participants, tripId: tripId)
-                    self.showToast(message: response.message ?? "Đã rời nhóm thành công!")
+                    self.showToast(message: response.message ?? "Đã rời nhóm thành công!", type: ToastType.success)
                     
                     packingListViewModel?.unassignItemsForUser(userId: userId) {
                         UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
@@ -300,7 +301,7 @@ class ParticipantViewModel: ObservableObject {
                     }
                 } else {
                     print("❌ Failed to leave trip: \(response.message ?? "Unknown error")")
-                    self.showToast(message: response.message ?? "Lỗi khi rời nhóm")
+                    self.showToast(message: response.message ?? "Lỗi khi rời nhóm", type: .error)
                     completionHandler?()
                 }
             }
@@ -387,18 +388,22 @@ class ParticipantViewModel: ObservableObject {
     
     private func handleCompletion(_ completion: Subscribers.Completion<Error>) {
         if case .failure(let error) = completion {
-            showToast(message: error.localizedDescription)
+            showToast(message: error.localizedDescription, type: .error)
         }
     }
     
-    private func showToast(message: String) {
-        DispatchQueue.main.async { [weak self] in
-            self?.toastMessage = message
-            self?.showToast = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self?.showToast = false
-                self?.toastMessage = nil
+    func showToast(message: String, type: ToastType) {
+            print("📢 Đặt toast: \(message) với type: \(type)")
+            DispatchQueue.main.async {
+                self.toastMessage = message
+                self.toastType = type
+                self.showToast = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                    print("📢 Ẩn toast")
+                    self.showToast = false
+                    self.toastMessage = nil
+                    self.toastType = nil
+                }
             }
         }
-    }
 }

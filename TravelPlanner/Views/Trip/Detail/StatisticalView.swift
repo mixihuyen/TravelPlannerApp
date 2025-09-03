@@ -19,15 +19,15 @@ struct StatisticalView: View {
                 if let dashboard = viewModel.dashboard {
                     ScrollView {
                         VStack(spacing: 24) {
-                            VStack(spacing: 16) {
-                                HStack(spacing: 16) {
+                            VStack {
+                                HStack {
                                     summaryBox(title: "Thu", value: dashboard.totalEstimated)
                                     summaryBox(title: "Chi", value: dashboard.totalActual)
                                 }
                                 summaryBox(title: "Thu chi", value: dashboard.balance)
                             }
 
-                            if dashboard.activities.isEmpty {
+                            if dashboard.totalActual == 0 {
                                 VStack(spacing: 10) {
                                     Spacer()
                                     Image("empty")
@@ -42,14 +42,15 @@ struct StatisticalView: View {
                                         .multilineTextAlignment(.center)
                                         .padding(.horizontal, 20)
                                     
-                                    Text("Hãy thêm các hoạt động để theo dõi chi phí!")
+                                    Text("Hãy thêm chi phí của các hoạt động để theo dõi!")
                                         .foregroundColor(.gray)
                                         .font(.system(size: 13))
                                         .multilineTextAlignment(.center)
                                         .padding(.horizontal, 20)
+                                    
+                                    
                                 }
                                 .padding(.top, 100)
-                                .frame(maxWidth: .infinity)
                             } else {
                                 PieChartViewWrapper(activities: dashboard.activities) { mapping in
                                     self.colorMap = mapping
@@ -88,11 +89,11 @@ struct StatisticalView: View {
                                 }
                             }
                         }
-                        .padding(.top, 60)
-                        .padding(.horizontal)
-                        .frame(maxWidth: 600)
-                        .frame(maxWidth: .infinity)
+                        
                     }
+                    .padding(.top, 50)
+                    .padding(.horizontal)
+                    .frame(maxWidth: .infinity)
                 } else if viewModel.isLoading {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -153,28 +154,24 @@ struct StatisticalView: View {
     }
 
     func summaryBox(title: String, value: Double) -> some View {
-        HStack(alignment: .bottom, spacing: 4) {
-            Text(title)
-                .foregroundColor(.gray)
-                .font(.caption)
-            Spacer()
-            Text("\(Formatter.formatCost(value))")
-                .foregroundColor(.white)
-                .font(.system(size: 20))
-                .fontWeight(.bold)
-//            Text("đ")
-//                .foregroundColor(.white)
-//                .font(.system(size: 14))
-//                .fontWeight(.bold)
+            HStack(alignment: .bottom, spacing: 4) {
+                Text(title)
+                    .foregroundColor(.gray)
+                    .font(.caption)
+                Spacer()
+                Text(title == "Thu chi" ? (value > 0 ? "+\(Formatter.formatCost(value))" : value < 0 ? "−\(Formatter.formatCost(value))" : Formatter.formatCost(value)) : Formatter.formatCost(value))
+                    .foregroundColor(title == "Thu chi" ? (value > 0 ? .blue : value < 0 ? .red : .white) : .white)
+                    .font(.system(size: 20))
+                    .fontWeight(.bold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.white.opacity(0.3), lineWidth: 1)
-        )
-    }
 }
 
 

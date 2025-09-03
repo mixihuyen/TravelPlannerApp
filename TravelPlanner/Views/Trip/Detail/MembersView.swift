@@ -37,21 +37,13 @@ struct MembersView: View {
                 showLeaveConfirmation: $showLeaveConfirmation
             )
             .overlay(
-                Group {
-                    if participantViewModel.showToast, let message = participantViewModel.toastMessage {
-                        SuccessToastView(message: message)
-                    }
-                    if parentShowToast {
-                        SuccessToastView(message: parentToastMessage)
-                            .onAppear {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                    parentShowToast = false
+                            Group {
+                                if participantViewModel.showToast, let message = participantViewModel.toastMessage, let type = participantViewModel.toastType {
+                                    ToastView(message: message, type: type)
                                 }
-                            }
-                    }
-                },
-                alignment: .bottom
-            )
+                            },
+                            alignment: .bottom
+                        )
         }
         .onAppear {
             participantViewModel.fetchParticipants(tripId: trip.id)

@@ -17,6 +17,10 @@ struct EditActivityView: View {
     @State private var note: String
     @State private var showDeleteAlert = false
     @State private var isSubmitting: Bool = false
+    @State private var showAlert: Bool = false
+    @State private var alertMessage: String = ""
+    
+    
     
     init(selectedDate: Date, trip: TripModel, activity: TripActivity, tripDayId: Int) {
         self.selectedDate = selectedDate
@@ -43,6 +47,13 @@ struct EditActivityView: View {
         .background(Color.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text("Lỗi"),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("OK"))
+            )
+        }
         .gesture(
             TapGesture()
                 .onEnded { _ in
@@ -91,7 +102,7 @@ struct EditActivityView: View {
                     .font(.system(size: 16))
                     .foregroundColor(.white)
                 CustomTextField(placeholder: "", text: $address, autocapitalization: .sentences, showIconImage: true,
-                               imageName: "address", height: 80, isMultiline: true)
+                                imageName: "address", height: 80, isMultiline: true)
             }
             .padding(.horizontal)
             .padding(.bottom, 5)
@@ -201,23 +212,33 @@ struct EditActivityView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(isSubmitting || activityName.isEmpty || endTime <= startTime)
+        .disabled(isSubmitting)
         .padding(.horizontal)
     }
     
     private func updateActivity() {
         guard !activityName.isEmpty else {
-            viewModel.showToast(message: "Vui lòng nhập tên hoạt động")
+            alertMessage = "Vui lòng nhập tên hoạt động"
+            showAlert = true
+            return
+        }
+        
+        guard !address.isEmpty else {
+            alertMessage = "Vui lòng nhập địa điểm"
+            showAlert = true
             return
         }
         
         guard endTime > startTime else {
-            viewModel.showToast(message: "Thời gian kết thúc phải sau thời gian bắt đầu")
+            alertMessage = "Thời gian kết thúc phải sau thời gian bắt đầu"
+            showAlert = true
             return
         }
         
         guard estimatedCost >= 0, actualCost >= 0 else {
-            viewModel.showToast(message: "Chi phí không được âm")
+            alertMessage = "Chi phí không được âm"
+            showAlert = true
+            
             return
         }
         
@@ -244,13 +265,13 @@ struct EditActivityView: View {
                 switch result {
                 case .success(let updatedActivity):
                     print("✅ Đã cập nhật hoạt động: \(updatedActivity.activity)")
-                    viewModel.showToast(message: "Đã cập nhật hoạt động: \(updatedActivity.activity)")
+                    viewModel.showToast(message: "Đã cập nhật hoạt động: \(updatedActivity.activity)", type: ToastType.success)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.navManager.goBack()
                     }
                 case .failure(let error):
                     print("❌ Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
-                    viewModel.showToast(message: "Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
+                    viewModel.showToast(message: "Lỗi khi cập nhật hoạt động: \(error.localizedDescription)", type: .error)
                 }
             }
         }
@@ -262,7 +283,7 @@ struct EditActivityView: View {
             DispatchQueue.main.async {
                 isSubmitting = false
                 print("📋 Đã xóa hoạt động và làm mới danh sách")
-                viewModel.showToast(message: "Đã xóa hoạt động")
+                viewModel.showToast(message: "Đã xóa hoạt động", type: ToastType.success)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.navManager.goBack()
                 }

@@ -97,8 +97,8 @@ struct TripView: View {
 
         .overlay(
             Group {
-                if viewModel.showToast, let message = viewModel.toastMessage {
-                    SuccessToastView(message: message)
+                if viewModel.showToast, let message = viewModel.toastMessage, let type = viewModel.toastType {
+                    ToastView(message: message, type: type)
                 }
             },
             alignment: .bottom

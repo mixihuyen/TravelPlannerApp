@@ -16,6 +16,7 @@ class PackingListViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isOffline: Bool = false
     @Published var toastMessage: String? = nil
+    @Published var toastType: ToastType?
     @Published var showToast: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
@@ -42,7 +43,7 @@ class PackingListViewModel: ObservableObject {
             self.cacheTimestamp = UserDefaults.standard.object(forKey: "packing_list_cache_timestamp_\(tripId)") as? Date
             print("📂 Sử dụng dữ liệu packing list từ cache cho tripId=\(tripId)")
         } else if isOffline {
-            showToast(message: "Không có dữ liệu cache và kết nối mạng, vui lòng kết nối lại!")
+            showToast(message: "Không có dữ liệu cache và kết nối mạng, vui lòng kết nối lại!", type: ToastType.error)
         }
         // Luôn fetch ngầm khi khởi tạo
         if !isOffline {
@@ -58,7 +59,7 @@ class PackingListViewModel: ObservableObject {
                 return
             }
             self.lastParticipantsHash = participantsHash
-            print("👥 Detected participants change: \(self.participants.map { "\($0.user.id): \($0.user.username), \(String(describing: $0.user.firstName)) \(String(describing: $0.user.lastName))" })")
+
             
             let validUserIds = Set(self.participants.map { $0.user.id })
             
@@ -70,7 +71,7 @@ class PackingListViewModel: ObservableObject {
                 self.fetchPackingList(forceRefresh: true) {
                     print("✅ Đã làm mới packing list từ API sau khi cập nhật participants")
                     self.saveToCache(packingList: self.packingList)
-                    self.showToast(message: "Đã cập nhật danh sách vật dụng sau khi thay đổi thành viên")
+                    self.showToast(message: "Đã cập nhật danh sách vật dụng sau khi thay đổi thành viên", type: ToastType.success)
                 }
             }
             
@@ -155,7 +156,7 @@ class PackingListViewModel: ObservableObject {
                 pendingItems.append(pending)
             }
             savePendingItems()
-            showToast(message: "Mạng yếu, đã lưu thay đổi offline!")
+            showToast(message: "Mạng yếu, đã lưu thay đổi offline!", type: ToastType.error)
             completion?()
             return
         }
@@ -197,10 +198,10 @@ class PackingListViewModel: ObservableObject {
             }
             if updateSuccess {
                 print("✅ Hoàn tất bỏ gán các vật dụng cho userId=\(userId)")
-                self.showToast(message: "Đã bỏ gán các vật dụng cho thành viên")
+                self.showToast(message: "Đã bỏ gán các vật dụng cho thành viên", type: ToastType.success)
             } else {
                 print("❌ Có lỗi khi bỏ gán các vật dụng cho userId=\(userId)")
-                self.showToast(message: "Lỗi khi bỏ gán vật dụng")
+                self.showToast(message: "Lỗi khi bỏ gán vật dụng", type: .error)
             }
             self.fetchPackingList(forceRefresh: true) {
                 print("✅ Đã làm mới danh sách vật dụng sau khi bỏ gán")
@@ -219,7 +220,7 @@ class PackingListViewModel: ObservableObject {
         }
         
         if isOffline {
-            showToast(message: "Không có kết nối mạng, sử dụng dữ liệu cache")
+            showToast(message: "Không có kết nối mạng, sử dụng dữ liệu cache", type: .error)
             completion?()
             return
         }
@@ -227,7 +228,7 @@ class PackingListViewModel: ObservableObject {
         guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/items"),
               let token = UserDefaults.standard.string(forKey: "authToken") else {
             print("❌ Invalid URL or Token")
-            showToast(message: "URL hoặc token không hợp lệ")
+            showToast(message: "URL hoặc token không hợp lệ", type: .error)
             completion?()
             return
         }
@@ -241,7 +242,7 @@ class PackingListViewModel: ObservableObject {
             } receiveValue: { [weak self] response in
                 guard let self, response.success else {
                     print("❌ Failed to fetch packing list")
-                    self?.showToast(message: "Không thể tải danh sách đồ")
+                    self?.showToast(message: "Không thể tải danh sách đồ", type: ToastType.error)
                     completion?()
                     return
                 }
@@ -277,14 +278,14 @@ class PackingListViewModel: ObservableObject {
     func createPackingItem(name: String, quantity: Int, isShared: Bool, isPacked: Bool = false, userId: Int? = nil, completion: (() -> Void)? = nil) {
         guard !name.isEmpty else {
             print("❌ Tên vật dụng rỗng")
-            showToast(message: "Vui lòng nhập tên vật dụng")
+            showToast(message: "Vui lòng nhập tên vật dụng", type: ToastType.error)
             completion?()
             return
         }
 
         // Chặn tạo vật dụng trong tab Chung khi offline
         if isShared && isOffline {
-            showToast(message: "Không thể tạo vật dụng trong tab Chung khi offline")
+            showToast(message: "Không thể tạo vật dụng trong tab Chung khi offline", type: .error)
             return
         }
 
@@ -314,7 +315,7 @@ class PackingListViewModel: ObservableObject {
             let pending = PendingItem(item: newItem, action: .create)
             pendingItems.append(pending)
             savePendingItems()
-            showToast(message: "Mạng yếu, đã lưu thay đổi offline!")
+            showToast(message: "Mạng yếu, đã lưu thay đổi offline!", type: .error)
             completion?()
             return
         }
@@ -324,7 +325,7 @@ class PackingListViewModel: ObservableObject {
             removeItem(with: tempId)
             saveToCache(packingList: packingList)
             print("❌ URL hoặc token không hợp lệ")
-            showToast(message: "URL hoặc token không hợp lệ")
+            showToast(message: "URL hoặc token không hợp lệ", type: .error)
             completion?()
             return
         }
@@ -347,9 +348,9 @@ class PackingListViewModel: ObservableObject {
                             let pending = PendingItem(item: newItem, action: .create)
                             self?.pendingItems.append(pending)
                             self?.savePendingItems()
-                            self?.showToast(message: "Mạng yếu, đã lưu thay đổi offline!")
+                            self?.showToast(message: "Mạng yếu, đã lưu thay đổi offline!", type: .error)
                         } else {
-                            self?.showToast(message: "Lỗi khi tạo vật dụng: \(error.localizedDescription)")
+                            self?.showToast(message: "Lỗi khi tạo vật dụng: \(error.localizedDescription)", type: .error)
                         }
                     case .finished:
                         ()
@@ -360,7 +361,7 @@ class PackingListViewModel: ObservableObject {
                         self?.removeItem(with: tempId)
                         self?.saveToCache(packingList: self?.packingList ?? PackingList(sharedItems: [], personalItems: []))
                         print("❌ Lỗi API khi tạo vật dụng")
-                        self?.showToast(message: "Không thể tạo vật dụng")
+                        self?.showToast(message: "Không thể tạo vật dụng", type: .error)
                         return
                     }
 
@@ -377,7 +378,7 @@ class PackingListViewModel: ObservableObject {
 
                     self.replaceItem(tempId: tempId, with: updatedItem)
                     self.saveToCache(packingList: self.packingList)
-                    self.showToast(message: "Đã tạo vật dụng \(updatedItem.name) thành công")
+                    self.showToast(message: "Đã tạo vật dụng \(updatedItem.name) thành công", type: ToastType.success)
                     print("✅ Đã tạo vật dụng: \(updatedItem.name) (ID: \(updatedItem.id))")
                 }
                 .store(in: &cancellables)
@@ -385,7 +386,7 @@ class PackingListViewModel: ObservableObject {
             removeItem(with: tempId)
             saveToCache(packingList: packingList)
             print("❌ Lỗi mã hóa dữ liệu: \(error.localizedDescription)")
-            showToast(message: "Lỗi khi chuẩn bị dữ liệu")
+            showToast(message: "Lỗi khi chuẩn bị dữ liệu", type: .error)
             completion?()
         }
     }
@@ -393,14 +394,14 @@ class PackingListViewModel: ObservableObject {
     func updatePackingItem(itemId: Int, name: String, quantity: Int, isShared: Bool, isPacked: Bool, userId: Int?, completion: @escaping () -> Void, onError: @escaping (Error) -> Void = { _ in }) {
         guard !name.isEmpty else {
             print("❌ Tên vật dụng rỗng")
-            showToast(message: "Vui lòng nhập tên vật dụng")
+            showToast(message: "Vui lòng nhập tên vật dụng", type: ToastType.error)
             onError(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Tên vật dụng rỗng"]))
             return
         }
 
         // Chặn cập nhật trong tab Chung khi offline
         if isShared && isOffline {
-            showToast(message: "Không thể cập nhật vật dụng trong tab Chung khi offline")
+            showToast(message: "Không thể cập nhật vật dụng trong tab Chung khi offline", type: ToastType.error)
             return
         }
 
@@ -439,7 +440,7 @@ class PackingListViewModel: ObservableObject {
                 let pending = PendingItem(item: item, action: .update)
                 pendingItems.append(pending)
                 savePendingItems()
-                showToast(message: "Mạng yếu, đã lưu thay đổi offline!")
+                showToast(message: "Mạng yếu, đã lưu thay đổi offline!", type: .error)
             }
             completion()
             return
@@ -448,7 +449,7 @@ class PackingListViewModel: ObservableObject {
         guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/items/\(itemId)"),
               let token = UserDefaults.standard.string(forKey: "authToken") else {
             print("❌ URL hoặc token không hợp lệ")
-            showToast(message: "URL hoặc token không hợp lệ")
+            showToast(message: "URL hoặc token không hợp lệ", type: .error)
             onError(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL hoặc token không hợp lệ"]))
             return
         }
@@ -473,7 +474,7 @@ class PackingListViewModel: ObservableObject {
                 } receiveValue: { [weak self] response in
                     guard let self, response.success else {
                         print("❌ Lỗi API khi cập nhật vật dụng \(itemId)")
-                        self?.showToast(message: "Không thể cập nhật vật dụng")
+                        self?.showToast(message: "Không thể cập nhật vật dụng", type: .error)
                         onError(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Lỗi API"]))
                         return
                     }
@@ -496,7 +497,7 @@ class PackingListViewModel: ObservableObject {
                 .store(in: &cancellables)
         } catch {
             print("❌ Lỗi mã hóa dữ liệu: \(error.localizedDescription)")
-            showToast(message: "Lỗi khi chuẩn bị dữ liệu")
+            showToast(message: "Lỗi khi chuẩn bị dữ liệu", type: .error)
             onError(error)
         }
     }
@@ -507,7 +508,7 @@ class PackingListViewModel: ObservableObject {
         
         // Chặn xóa trong tab Chung khi offline
         if isShared && isOffline {
-            showToast(message: "Không thể xóa vật dụng trong tab Chung khi offline")
+            showToast(message: "Không thể xóa vật dụng trong tab Chung khi offline", type: .error)
             return
         }
 
@@ -527,7 +528,7 @@ class PackingListViewModel: ObservableObject {
                 let pending = PendingItem(item: item, action: .delete)
                 pendingItems.append(pending)
                 savePendingItems()
-                showToast(message: "Mạng yếu, đã lưu thay đổi offline!")
+                showToast(message: "Mạng yếu, đã lưu thay đổi offline!", type: .error)
             }
             completion?()
             return
@@ -545,7 +546,7 @@ class PackingListViewModel: ObservableObject {
                 saveToCache(packingList: packingList)
             }
             print("❌ Invalid URL or Token for delete request")
-            showToast(message: "URL hoặc token không hợp lệ")
+            showToast(message: "URL hoặc token không hợp lệ", type: .error)
             completion?()
             return
         }
@@ -567,7 +568,7 @@ class PackingListViewModel: ObservableObject {
                         self?.saveToCache(packingList: self?.packingList ?? PackingList(sharedItems: [], personalItems: []))
                     }
                     print("❌ Lỗi khi xóa vật dụng \(itemId): \(error.localizedDescription)")
-                    self?.showToast(message: "Lỗi khi xóa vật dụng")
+                    self?.showToast(message: "Lỗi khi xóa vật dụng", type: .error)
                 case .finished:
                     print("✅ Xóa vật dụng thành công")
                 }
@@ -588,11 +589,11 @@ class PackingListViewModel: ObservableObject {
                         self.saveToCache(packingList: self.packingList)
                     }
                     print("❌ Lỗi API khi xóa vật dụng \(itemId): \(response.message)")
-                    self.showToast(message: response.message)
+                    self.showToast(message: response.message, type: .error)
                     return
                 }
 
-                self.showToast(message: "Đã xóa vật dụng")
+                self.showToast(message: "Đã xóa vật dụng", type: .success)
             }
             .store(in: &cancellables)
     }
@@ -616,7 +617,7 @@ class PackingListViewModel: ObservableObject {
     func binding(for item: PackingItem, in tab: PackingListView.TabType) -> Binding<Bool> {
         // Chặn check done trong tab Chung khi offline
         if tab == .shared && isOffline {
-            showToast(message: "Không thể cập nhật trạng thái trong tab Chung khi offline")
+            showToast(message: "Không thể cập nhật trạng thái trong tab Chung khi offline", type: .error)
             return .constant(item.isPacked)
         }
 
@@ -637,7 +638,7 @@ class PackingListViewModel: ObservableObject {
                             let pending = PendingItem(item: self.packingList.sharedItems[index], action: .update)
                             self.pendingItems.append(pending)
                             self.savePendingItems()
-                            self.showToast(message: "Mạng yếu, đã lưu thay đổi offline!")
+                            self.showToast(message: "Mạng yếu, đã lưu thay đổi offline!", type: ToastType.error)
                         } else {
                             self.updatePackingItem(
                                 itemId: item.id,
@@ -673,7 +674,7 @@ class PackingListViewModel: ObservableObject {
                             let pending = PendingItem(item: self.packingList.personalItems[index], action: .update)
                             self.pendingItems.append(pending)
                             self.savePendingItems()
-                            self.showToast(message: "Mạng yếu, đã lưu thay đổi offline!")
+                            self.showToast(message: "Mạng yếu, đã lưu thay đổi offline!", type: .error)
                         } else {
                             self.updatePackingItem(
                                 itemId: item.id,
@@ -753,12 +754,12 @@ class PackingListViewModel: ObservableObject {
     func assignItem(itemId: Int, to userId: Int?) {
         guard let index = packingList.sharedItems.firstIndex(where: { $0.id == itemId }) else {
             print("❌ Item \(itemId) not found in shared items")
-            showToast(message: "Không tìm thấy vật dụng")
+            showToast(message: "Không tìm thấy vật dụng", type: .error)
             return
         }
         // Chặn gán user trong tab Chung khi offline
         if isOffline {
-            showToast(message: "Không thể gán người dùng trong tab Chung khi offline")
+            showToast(message: "Không thể gán người dùng trong tab Chung khi offline", type: ToastType.error)
             return
         }
         let oldUserId = packingList.sharedItems[index].userId
@@ -788,7 +789,7 @@ class PackingListViewModel: ObservableObject {
         switch completion {
         case .failure(let error):
             print("❌ Error performing request: \(error.localizedDescription)")
-            showToast(message: "Lỗi khi thực hiện hành động")
+            showToast(message: "Lỗi khi thực hiện hành động", type: .error)
         case .finished:
             print("✅ Request completed")
         }
@@ -916,7 +917,7 @@ class PackingListViewModel: ObservableObject {
                             self?.replaceItem(tempId: pending.item.id, with: updatedItem)
                             self?.saveToCache(packingList: self?.packingList ?? PackingList(sharedItems: [], personalItems: []))
                             self?.removePending(with: pending.item.id)
-                            self?.showToast(message: "Đã đồng bộ tạo vật dụng")
+                            self?.showToast(message: "Đã đồng bộ tạo vật dụng", type: .success)
                         }
                     }
                     .store(in: &cancellables)
@@ -932,7 +933,7 @@ class PackingListViewModel: ObservableObject {
                             self?.replaceItem(tempId: pending.item.id, with: updatedItem)
                             self?.saveToCache(packingList: self?.packingList ?? PackingList(sharedItems: [], personalItems: []))
                             self?.removePending(with: pending.item.id)
-                            self?.showToast(message: "Đã đồng bộ cập nhật vật dụng")
+                            self?.showToast(message: "Đã đồng bộ cập nhật vật dụng", type: .success)
                         }
                     }
                     .store(in: &cancellables)
@@ -943,7 +944,7 @@ class PackingListViewModel: ObservableObject {
                     .sink { _ in } receiveValue: { [weak self] response in
                         if response.success {
                             self?.removePending(with: pending.item.id)
-                            self?.showToast(message: "Đã đồng bộ xóa vật dụng")
+                            self?.showToast(message: "Đã đồng bộ xóa vật dụng", type: ToastType.success)
                         }
                     }
                     .store(in: &cancellables)
@@ -969,16 +970,20 @@ class PackingListViewModel: ObservableObject {
         packingList.personalItems.removeAll { $0.id == id }
     }
 
-    private func showToast(message: String) {
-        print("📢 Setting toast: \(message)")
-        toastMessage = message
-        showToast = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            print("📢 Hiding toast")
-            self.showToast = false
-            self.toastMessage = nil
+    func showToast(message: String, type: ToastType) {
+            print("📢 Đặt toast: \(message) với type: \(type)")
+            DispatchQueue.main.async {
+                self.toastMessage = message
+                self.toastType = type
+                self.showToast = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                    print("📢 Ẩn toast")
+                    self.showToast = false
+                    self.toastMessage = nil
+                    self.toastType = nil
+                }
+            }
         }
-    }
 
     func initials(for user: User) -> String {
         let first = user.firstName?.prefix(1) ?? ""
