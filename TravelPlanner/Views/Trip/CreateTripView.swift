@@ -21,7 +21,8 @@ struct CreateTripView: View {
     @State private var isUploading: Bool = false // Trạng thái upload
     @State private var imageCoverUrl: String? // Lưu URL ảnh bìa
     @State private var imageCoverData: Data? // Lưu dữ liệu ảnh
-
+    @State private var isPublic: Bool = false
+    
     var body: some View {
         ScrollView {
             VStack{
@@ -147,6 +148,13 @@ struct CreateTripView: View {
                     .font(.system(size: 16, weight: .medium))
                 CustomTextField(placeholder: "Mô tả (không bắt buộc)", text: $newTripDescription, autocapitalization: .sentences, height: 80, isMultiline: true)
                     .padding(.bottom)
+                Toggle(isOn: $isPublic) {
+                    Text(isPublic ? "Công khai" : "Riêng tư")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                .padding(.bottom)
+                
                 CustomDatePicker(title: "Ngày bắt đầu", date: $newTripStartDate)
                     .padding(.bottom)
                 CustomDatePicker(title: "Ngày kết thúc", date: $newTripEndDate)
@@ -177,41 +185,41 @@ struct CreateTripView: View {
     // MARK: - Logic
     
     private func uploadImageToCloudinary() {
-            guard let image = selectedImage else {
+        guard let image = selectedImage else {
+            isUploading = false
+            showAlert = true
+            alertMessage = "Không có ảnh được chọn"
+            return
+        }
+        isUploading = true
+        cloudinaryManager.uploadImageCover(image: image) { result in
+            DispatchQueue.main.async {
                 isUploading = false
-                showAlert = true
-                alertMessage = "Không có ảnh được chọn"
-                return
-            }
-            isUploading = true
-            cloudinaryManager.uploadImageCover(image: image) { result in
-                DispatchQueue.main.async {
-                    isUploading = false
-                    switch result {
-                    case .success(let (url, _, data)):
-                        self.imageCoverUrl = url
-                        self.imageCoverData = data
-                        print("📸 Uploaded image, URL: \(url), imageData size: \(data.count) bytes")
-                    case .failure(let error):
-                        self.showAlert = true
-                        self.alertMessage = "Lỗi khi upload ảnh: \(error.localizedDescription)"
-                    }
+                switch result {
+                case .success(let (url, _, data)):
+                    self.imageCoverUrl = url
+                    self.imageCoverData = data
+                    print("📸 Uploaded image, URL: \(url), imageData size: \(data.count) bytes")
+                case .failure(let error):
+                    self.showAlert = true
+                    self.alertMessage = "Lỗi khi upload ảnh: \(error.localizedDescription)"
                 }
             }
         }
+    }
     
     private func addTrip() {
         guard !newTripName.isEmpty else {
-                alertMessage = "Vui lòng nhập tên chuyến đi"
-                showAlert = true
-                return
-            }
-            
-            guard !newTripAddress.isEmpty else {
-                alertMessage = "Vui lòng nhập địa chỉ"
-                showAlert = true
-                return
-            }
+            alertMessage = "Vui lòng nhập tên chuyến đi"
+            showAlert = true
+            return
+        }
+        
+        guard !newTripAddress.isEmpty else {
+            alertMessage = "Vui lòng nhập địa chỉ"
+            showAlert = true
+            return
+        }
         guard newTripEndDate >= newTripStartDate else {
             alertMessage = "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu"
             showAlert = true
@@ -228,7 +236,8 @@ struct CreateTripView: View {
             endDate: end,
             address: newTripAddress,
             imageCoverUrl: imageCoverUrl,
-            imageCoverData: imageCoverData
+            imageCoverData: imageCoverData,
+            isPublic: isPublic
         )
         
         resetForm()
@@ -248,5 +257,6 @@ struct CreateTripView: View {
         selectedPhotoItem = nil
         imageCoverUrl = nil
         imageCoverData = nil
+        isPublic = false
     }
 }

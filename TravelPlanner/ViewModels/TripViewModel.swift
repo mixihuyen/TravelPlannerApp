@@ -171,7 +171,7 @@ class TripViewModel: ObservableObject {
         saveToCache(trips: self.trips)
     }
     
-    func addTrip(name: String, description: String?, startDate: String, endDate: String, address: String?, imageCoverUrl: String?, imageCoverData: Data?) {
+    func addTrip(name: String, description: String?, startDate: String, endDate: String, address: String?, imageCoverUrl: String?, imageCoverData: Data?, isPublic: Bool) {
         // Kiểm tra kết nối mạng
         if isOffline {
             showToast(message: "Không có kết nối mạng, không thể tạo chuyến đi mới. Vui lòng kết nối mạng!", type: .error)
@@ -191,7 +191,7 @@ class TripViewModel: ObservableObject {
             endDate: endDate,
             address: address,
             imageCoverUrl: imageCoverUrl,
-            isPublic: false,
+            isPublic: isPublic,
             status: "planned",
             createdByUserId: UserDefaults.standard.integer(forKey: "userId")
         )
@@ -229,7 +229,7 @@ class TripViewModel: ObservableObject {
             .store(in: &cancellables)
     }
     
-    func updateTrip(tripId: Int, name: String, description: String?, startDate: String, endDate: String, address: String?, imageCoverUrl: String?, imageCoverData: Data?, completion: @escaping (Bool) -> Void) {
+    func updateTrip(tripId: Int, name: String, description: String?, startDate: String, endDate: String, address: String?, imageCoverUrl: String?, imageCoverData: Data?, isPublic: Bool, completion: @escaping (Bool) -> Void) {
         if isOffline {
             showToast(message: "Không có kết nối mạng, vui lòng thử lại khi có mạng!", type: ToastType.error)
             completion(false)
@@ -250,7 +250,7 @@ class TripViewModel: ObservableObject {
             endDate: endDate,
             address: address,
             imageCoverUrl: imageCoverUrl,
-            isPublic: false,
+            isPublic: isPublic,
             status: "planned",
             createdByUserId: UserDefaults.standard.integer(forKey: "userId")
         )
