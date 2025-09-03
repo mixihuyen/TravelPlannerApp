@@ -22,6 +22,7 @@ struct EditTripView: View {
     @State private var isUploading: Bool = false // Trạng thái upload
     @State private var imageCoverUrl: String? // Lưu URL ảnh bìa
     @State private var imageCoverData: Data? // Lưu dữ liệu ảnh
+    @State private var isPublic: Bool = false
     
     init(trip: TripModel) {
         self.trip = trip
@@ -174,6 +175,12 @@ struct EditTripView: View {
                     .font(.system(size: 16, weight: .medium))
                 CustomTextField(placeholder: "Mô tả (không bắt buộc)", text: $tripDescription, autocapitalization: .sentences, height: 80, isMultiline: true)
                     .padding(.bottom)
+                Toggle(isOn: $isPublic) {
+                    Text(isPublic ? "Công khai" : "Riêng tư")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                }
+                .padding(.bottom)
                 CustomDatePicker(title: "Ngày bắt đầu", date: $tripStartDate)
                     .padding(.bottom)
                 CustomDatePicker(title: "Ngày kết thúc", date: $tripEndDate)
@@ -293,6 +300,7 @@ struct EditTripView: View {
             address: tripAddress,
             imageCoverUrl: imageCoverUrl, // Sử dụng State variable
             imageCoverData: imageCoverData, // Sử dụng State variable
+            isPublic: isPublic,
             completion: { success in
                 if success {
                     NotificationCenter.default.post(

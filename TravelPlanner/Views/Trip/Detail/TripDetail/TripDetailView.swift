@@ -48,37 +48,24 @@ struct TripDetailView: View {
                                 .fill(Color.retangleBackground)
                                 .frame(height: 200)
                                 .ignoresSafeArea()
-                            HStack {
+                            HStack (alignment : .bottom){
                                 Image("detail")
                                     .resizable()
                                     .frame(width: 93, height: 101)
                                 VStack(alignment: .leading) {
-                                    HStack{
-                                        Image(systemName: "globe.europe.africa.fill")
-                                            .foregroundColor(Color.white)
-                                            .frame(width: 16, height: 16)
-                                        Text("Công khai")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.white)
-                                    }
-                                    HStack (alignment: .bottom){
-                                        Image(systemName: "lock.fill")
-                                            .foregroundColor(Color.white)
-                                            .frame(width: 16, height: 16)
-                                        Text("Riêng tư")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.white)
-                                    }
-                                    
-                                    
-                                    
                                     Text(trip.name)
                                         .font(.system(size: 20))
                                         .bold()
                                         .foregroundColor(.white)
-                                    Text("\(Formatter.formatDate1(trip.startDate)) → \(Formatter.formatDate1(trip.endDate))")
-                                        .foregroundColor(.white)
-                                        .font(.system(size: 12))
+                                    
+                                    HStack{
+                                        Text("\(Formatter.formatDate1(trip.startDate)) → \(Formatter.formatDate1(trip.endDate))")
+                                            .foregroundColor(.white)
+                                            .font(.system(size: 12))
+                                        Image(systemName: trip.isPublic ? "globe.europe.africa.fill" : "lock.fill")
+                                            .foregroundColor(Color.white)
+                                            .font(.system(size: 12))
+                                    }
                                 }
                                 Spacer()
                                 Button(action: {
