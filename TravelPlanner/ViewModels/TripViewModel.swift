@@ -10,6 +10,7 @@ class TripViewModel: ObservableObject {
     @Published var isOffline: Bool = false
     @Published var toastMessage: String? = nil
     @Published var showToast: Bool = false
+    @Published var toastType: ToastType?
     
     private var cancellables = Set<AnyCancellable>()
     private let networkMonitor = NWPathMonitor()
@@ -29,7 +30,7 @@ class TripViewModel: ObservableObject {
             self.cacheTimestamp = UserDefaults.standard.object(forKey: "trips_cache_timestamp") as? Date
             print("📂 Sử dụng dữ liệu từ cache")
         } else if isOffline {
-            showToast(message: "Không có dữ liệu cache và kết nối mạng, vui lòng kết nối lại!")
+            showToast(message: "Không có dữ liệu cache và kết nối mạng, vui lòng kết nối lại!", type: .error)
         }
         if !isOffline {
             fetchTrips()
@@ -47,7 +48,7 @@ class TripViewModel: ObservableObject {
         }
         
         if isOffline {
-            showToast(message: "Không có kết nối mạng, sử dụng dữ liệu cache")
+            showToast(message: "Không có kết nối mạng, sử dụng dữ liệu cache", type: .error)
             completion?()
             return
         }
@@ -56,12 +57,11 @@ class TripViewModel: ObservableObject {
               let token = UserDefaults.standard.string(forKey: "authToken") else {
             isLoading = false
             completion?()
-            showToast(message: "Không tìm thấy token xác thực")
+            showToast(message: "Không tìm thấy token xác thực", type: .error)
             return
         }
         print("authToken: \(token)")
         
-        // Lấy dữ liệu từ Core Data và danh sách trips hiện tại để giữ imageCoverData
         let cachedTrips = loadFromCache() ?? []
         let cachedTripDict = Dictionary(uniqueKeysWithValues: cachedTrips.map { ($0.id, $0.imageCoverData) })
         let currentTripDict = Dictionary(uniqueKeysWithValues: trips.map { ($0.id, $0.imageCoverData) })
@@ -81,7 +81,7 @@ class TripViewModel: ObservableObject {
                             print("🔍 Data corrupted: \(context.debugDescription)")
                         case .keyNotFound(let key, let context):
                             print("🔍 Key '\(key)' not found: \(context.debugDescription)")
-                            self.showToast(message: "Dữ liệu từ server không đầy đủ, vui lòng thử lại!")
+                            self.showToast(message: "Dữ liệu từ server không đầy đủ, vui lòng thử lại!", type: .error)
                         case .typeMismatch(let type, let context):
                             print("🔍 Type '\(type)' mismatch: \(context.debugDescription)")
                         case .valueNotFound(let type, let context):
@@ -90,7 +90,7 @@ class TripViewModel: ObservableObject {
                             print("🔍 Lỗi decode không xác định")
                         }
                     } else {
-                        self.showToast(message: "Lỗi khi tải danh sách chuyến đi: \(error.localizedDescription)")
+                        self.showToast(message: "Lỗi khi tải danh sách chuyến đi: \(error.localizedDescription)", type: ToastType.error)
                     }
                 case .finished:
                     print("✅ Fetch trips hoàn tất")
@@ -99,71 +99,88 @@ class TripViewModel: ObservableObject {
             } receiveValue: { [weak self] response in
                 guard let self else { return }
                 var updatedTrips = response.data
-                // Khôi phục imageCoverData từ Core Data hoặc danh sách trips hiện tại
+                print("📥 API response trips: \(updatedTrips.map { "ID: \($0.id), imageCoverData: \($0.imageCoverData != nil ? "Có dữ liệu (\($0.imageCoverData!.count) bytes)" : "Không có dữ liệu")" })")
+                
+                let dispatchGroup = DispatchGroup()
+                
                 for i in 0..<updatedTrips.count {
                     let tripId = updatedTrips[i].id
                     if let imageCoverData = cachedTripDict[tripId] ?? currentTripDict[tripId] {
                         updatedTrips[i].imageCoverData = imageCoverData
-                        print("📸 Restored imageCoverData for trip ID: \(tripId), size: bytes")
+                        print("📸 Restored imageCoverData for trip ID: \(tripId), size: \(imageCoverData?.count) bytes")
+                    } else if let url = updatedTrips[i].imageCoverUrl, !url.isEmpty {
+                        dispatchGroup.enter()
+                        self.downloadImageData(from: url) { data in
+                            if let data = data {
+                                updatedTrips[i].imageCoverData = data
+                                print("📸 Downloaded imageCoverData for trip ID: \(tripId), size: \(data.count) bytes")
+                            } else {
+                                print("📸 Failed to download imageCoverData for trip ID: \(tripId)")
+                            }
+                            dispatchGroup.leave()
+                        }
                     } else {
-                        print("📸 No imageCoverData found for trip ID: \(tripId) in cache or current trips")
+                        print("📸 No imageCoverData or imageCoverUrl for trip ID: \(tripId)")
                     }
                 }
-                self.updateTrips(with: updatedTrips)
-                print("📋 Danh sách trips sau khi fetch:")
-                self.trips.forEach { trip in
-                    print("🧳 Trip ID: \(trip.id) - \(trip.name) - Address: \(trip.address ?? "N/A"), Participants: \(String(describing: trip.tripParticipants?.map { "\($0.userId):\($0.role)" })), imageCoverData: \(trip.imageCoverData != nil ? "Có dữ liệu (\(trip.imageCoverData!.count) bytes)" : "Không có dữ liệu")")
+                
+                dispatchGroup.notify(queue: .main) {
+                    print("📋 Updated trips after downloading images: \(updatedTrips.map { "ID: \($0.id), imageCoverData: \($0.imageCoverData != nil ? "Có dữ liệu (\($0.imageCoverData!.count) bytes)" : "Không có dữ liệu")" })")
+                    self.updateTrips(with: updatedTrips)
+                    self.saveToCache(trips: self.trips)
                 }
-                self.saveToCache(trips: self.trips)
             }
             .store(in: &cancellables)
     }
     
     private func updateTrips(with newTrips: [TripModel]) {
-            let currentTripIds = Set(trips.map { $0.id })
-            let newTripIds = Set(newTrips.map { $0.id })
-            let currentUserId = UserDefaults.standard.integer(forKey: "userId")
-            
-            // Giữ imageCoverData từ danh sách trips hiện tại
-            let currentTripDict = Dictionary(uniqueKeysWithValues: trips.map { ($0.id, $0.imageCoverData) })
-            
-            trips.removeAll { !newTripIds.contains($0.id) }
-            
-            for var newTrip in newTrips {
-                // Khôi phục imageCoverData từ danh sách hiện tại nếu có
-                if let imageCoverData = currentTripDict[newTrip.id] {
-                    newTrip.imageCoverData = imageCoverData
-                    print("📸 Preserved imageCoverData for trip ID: \(newTrip.id), size:  bytes")
-                }
-                if let index = trips.firstIndex(where: { $0.id == newTrip.id }) {
-                    // Luôn cập nhật để đảm bảo tripParticipants được cập nhật
-                    print("🔄 Cập nhật trip ID: \(newTrip.id)")
-                    trips[index] = newTrip
-                    showToast(message: "Cập nhật chuyến đi: \(newTrip.name)")
+        print("📥 Dữ liệu mới từ server: \(newTrips.map { "ID: \($0.id), name: \($0.name), participants: \($0.tripParticipants?.map { "\($0.userId):\($0.role)" } ?? [])" })")
+        print("📋 Dữ liệu hiện tại trong trips: \(trips.map { "ID: \($0.id), name: \($0.name), participants: \($0.tripParticipants?.map { "\($0.userId):\($0.role)" } ?? [])" })")
+        
+        let currentTripIds = Set(trips.map { $0.id })
+        let newTripIds = Set(newTrips.map { $0.id })
+        let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+        let currentTripDict = Dictionary(uniqueKeysWithValues: trips.map { ($0.id, ($0.imageCoverData, $0.tripParticipants)) })
+        
+        var updatedTrips: [TripModel] = []
+        
+        for var newTrip in newTrips {
+            if let (imageCoverData, existingParticipants) = currentTripDict[newTrip.id] {
+                newTrip.imageCoverData = imageCoverData
+                // Giữ participants cũ nếu API không trả về participants mới
+                newTrip.tripParticipants = newTrip.tripParticipants ?? existingParticipants
+                print("📸 Preserved imageCoverData for trip ID: \(newTrip.id), size: \(imageCoverData?.count ?? 0) bytes")
+                print("👥 Preserved participants for trip ID: \(newTrip.id): \(newTrip.tripParticipants?.map { "\($0.userId):\($0.role)" } ?? [])")
+            }
+            if currentTripIds.contains(newTrip.id) {
+                print("🔄 Cập nhật trip ID: \(newTrip.id), name: \(newTrip.name)")
+                showToast(message: "Cập nhật chuyến đi: \(newTrip.name)", type: ToastType.success)
+            } else {
+                print("➕ Thêm trip mới ID: \(newTrip.id), name: \(newTrip.name)")
+                if newTrip.createdByUserId == currentUserId {
+                    showToast(message: "Thêm chuyến đi mới: \(newTrip.name)", type: ToastType.success)
                 } else {
-                    print("➕ Thêm trip mới ID: \(newTrip.id)")
-                    trips.append(newTrip)
-                    if newTrip.createdByUserId == currentUserId {
-                        showToast(message: "Thêm chuyến đi mới: \(newTrip.name)")
-                    } else {
-                        print("ℹ️ Chuyến đi \(newTrip.name) được thêm bởi người dùng khác (ID: \(newTrip.createdByUserId))")
-                    }
+                    print("ℹ️ Chuyến đi \(newTrip.name) được thêm bởi người dùng khác (ID: \(newTrip.createdByUserId))")
                 }
             }
-            
-            trips.sort { $0.id < $1.id }
+            updatedTrips.append(newTrip)
         }
+        
+        self.trips = updatedTrips.sorted { $0.id < $1.id }
+        self.objectWillChange.send() // Ép SwiftUI nhận ra thay đổi
+        saveToCache(trips: self.trips)
+    }
     
     func addTrip(name: String, description: String?, startDate: String, endDate: String, address: String?, imageCoverUrl: String?, imageCoverData: Data?) {
         // Kiểm tra kết nối mạng
         if isOffline {
-            showToast(message: "Không có kết nối mạng, không thể tạo chuyến đi mới. Vui lòng kết nối mạng!")
+            showToast(message: "Không có kết nối mạng, không thể tạo chuyến đi mới. Vui lòng kết nối mạng!", type: .error)
             return
         }
         
         guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)"),
               let token = UserDefaults.standard.string(forKey: "authToken") else {
-            showToast(message: "Không tìm thấy token xác thực")
+            showToast(message: "Không tìm thấy token xác thực", type: ToastType.error)
             return
         }
         
@@ -181,7 +198,7 @@ class TripViewModel: ObservableObject {
         
         guard let body = try? JSONEncoder().encode(tripData) else {
             print("❌ JSON Encoding Error")
-            showToast(message: "Lỗi mã hóa dữ liệu")
+            showToast(message: "Lỗi mã hóa dữ liệu", type: ToastType.error)
             return
         }
         
@@ -195,10 +212,10 @@ class TripViewModel: ObservableObject {
                 switch completionResult {
                 case .failure(let error):
                     print("❌ Lỗi khi thêm chuyến đi: \(error.localizedDescription)")
-                    showToast(message: "Lỗi khi thêm chuyến đi: \(error.localizedDescription)")
+                    showToast(message: "Lỗi khi thêm chuyến đi: \(error.localizedDescription)", type: .error)
                 case .finished:
                     self.fetchTrips(forceRefresh: true) {
-                        self.showToast(message: "Thêm chuyến đi thành công!")
+                        self.showToast(message: "Thêm chuyến đi thành công!", type: ToastType.success)
                     }
                 }
             } receiveValue: { [weak self] response in
@@ -214,14 +231,14 @@ class TripViewModel: ObservableObject {
     
     func updateTrip(tripId: Int, name: String, description: String?, startDate: String, endDate: String, address: String?, imageCoverUrl: String?, imageCoverData: Data?, completion: @escaping (Bool) -> Void) {
         if isOffline {
-            showToast(message: "Không có kết nối mạng, vui lòng thử lại khi có mạng!")
+            showToast(message: "Không có kết nối mạng, vui lòng thử lại khi có mạng!", type: ToastType.error)
             completion(false)
             return
         }
         
         guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)"),
               let token = UserDefaults.standard.string(forKey: "authToken") else {
-            showToast(message: "Không tìm thấy token xác thực")
+            showToast(message: "Không tìm thấy token xác thực", type: ToastType.error)
             completion(false)
             return
         }
@@ -240,10 +257,12 @@ class TripViewModel: ObservableObject {
         
         guard let body = try? JSONEncoder().encode(tripData) else {
             print("❌ JSON Encoding Error")
-            showToast(message: "Lỗi mã hóa dữ liệu")
+            showToast(message: "Lỗi mã hóa dữ liệu", type: ToastType.error)
             completion(false)
             return
         }
+        
+        print("📤 Request body: \(String(data: body, encoding: .utf8) ?? "Không thể decode body")")
         
         let request = NetworkManager.createRequest(url: url, method: "PATCH", token: token, body: body)
         isLoading = true
@@ -258,13 +277,22 @@ class TripViewModel: ObservableObject {
                 case .failure(let error):
                     print("❌ Lỗi khi cập nhật chuyến đi: \(error.localizedDescription)")
                     if (error as? URLError)?.code == .notConnectedToInternet {
-                        self.showToast(message: "Mạng yếu, vui lòng thử lại sau!")
+                        self.showToast(message: "Mạng yếu, vui lòng thử lại sau!", type: ToastType.error)
                     } else {
-                        self.showToast(message: "Lỗi khi cập nhật chuyến đi: \(error.localizedDescription)")
+                        self.showToast(message: "Lỗi khi cập nhật chuyến đi: \(error.localizedDescription)", type: ToastType.error)
                     }
                     completion(false)
                 case .finished:
                     print("✅ Cập nhật chuyến đi thành công")
+                    self.fetchTrips(forceRefresh: true) {
+                        self.showToast(message: "Cập nhật chuyến đi thành công!", type: ToastType.success)
+                        completion(true)
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("TripUpdated"),
+                            object: nil,
+                            userInfo: ["tripId": tripId]
+                        )
+                    }
                 }
             } receiveValue: { [weak self] response in
                 guard let self else {
@@ -272,11 +300,9 @@ class TripViewModel: ObservableObject {
                     return
                 }
                 var updatedTrip = response.data
-                updatedTrip.imageCoverData = imageCoverData // Gắn imageCoverData trước khi lưu cache
+                updatedTrip.imageCoverData = imageCoverData
+                print("🔍 Dữ liệu từ server: startDate: \(updatedTrip.startDate), endDate: \(updatedTrip.endDate), participants: \(updatedTrip.tripParticipants?.map { "\($0.userId):\($0.role)" } ?? [])")
                 self.handleTripUpdate(updatedTrip)
-                self.showToast(message: "Cập nhật chuyến đi thành công!")
-                completion(true)
-                print("🔄 Cập nhật chuyến đi ID: \(updatedTrip.id), imageCoverData: \(updatedTrip.imageCoverData != nil ? "Có dữ liệu (\(updatedTrip.imageCoverData!.count) bytes)" : "Không có dữ liệu")")
             }
             .store(in: &cancellables)
     }
@@ -287,7 +313,7 @@ class TripViewModel: ObservableObject {
         
         guard let index = trips.firstIndex(where: { $0.id == id }) else {
             print("❌ Không tìm thấy trip để xóa")
-            showToast(message: "Chuyến đi không tồn tại")
+            showToast(message: "Chuyến đi không tồn tại", type: ToastType.error)
             completion(false)
             return
         }
@@ -300,7 +326,7 @@ class TripViewModel: ObservableObject {
             print("❌ Không có kết nối mạng, không thể xóa")
             trips.insert(backupTrip, at: index)
             saveToCache(trips: trips)
-            showToast(message: "Không có kết nối mạng, vui lòng thử lại sau")
+            showToast(message: "Không có kết nối mạng, vui lòng thử lại sau", type: ToastType.error)
             completion(false)
             return
         }
@@ -310,23 +336,10 @@ class TripViewModel: ObservableObject {
             trips.insert(backupTrip, at: index)
             saveToCache(trips: trips)
             print("❌ URL hoặc Token không hợp lệ")
-            showToast(message: "Lỗi xác thực, vui lòng đăng nhập lại")
+            showToast(message: "Lỗi xác thực, vui lòng đăng nhập lại", type: ToastType.error)
             completion(false)
             return
         }
-        
-//        // Xóa ảnh trên Cloudinary nếu có
-//        if let publicId = backupTrip.imageCoverUrl?.components(separatedBy: "/").last?.components(separatedBy: ".").first {
-//            CloudinaryManager().deleteImage(publicId: publicId) { result in
-//                switch result {
-//                case .success:
-//                    print("🗑️ Xóa ảnh trên Cloudinary thành công: \(publicId)")
-//                case .failure(let error):
-//                    print("❌ Lỗi xóa ảnh trên Cloudinary: \(error.localizedDescription)")
-//                }
-//            }
-//        }
-        
         let request = NetworkManager.createRequest(url: url, method: "DELETE", token: token)
         isLoading = true
         networkManager.performRequest(request, decodeTo: VoidResponse.self)
@@ -340,17 +353,17 @@ class TripViewModel: ObservableObject {
                     self.saveToCache(trips: self.trips)
                     if (error as? URLError)?.code == .badServerResponse || (error as? URLError)?.code.rawValue == -1011 {
                         self.fetchTrips(forceRefresh: true) {
-                            self.showToast(message: "Chuyến đi không tồn tại hoặc đã bị xóa")
+                            self.showToast(message: "Chuyến đi không tồn tại hoặc đã bị xóa", type: ToastType.error)
                             completion(false)
                         }
                     } else {
-                        self.showToast(message: "Lỗi khi xóa chuyến đi: \(error.localizedDescription)")
+                        self.showToast(message: "Lỗi khi xóa chuyến đi: \(error.localizedDescription)", type: ToastType.error)
                         completion(false)
                     }
                 case .finished:
                     print("✅ Xóa trip thành công")
                     self.fetchTrips(forceRefresh: true) {
-                        self.showToast(message: "Xoá chuyến đi thành công!")
+                        self.showToast(message: "Xoá chuyến đi thành công!", type: ToastType.success)
                         completion(true)
                     }
                 }
@@ -361,6 +374,7 @@ class TripViewModel: ObservableObject {
     func refreshTrips() {
         isRefreshing = true
         // Không xóa cache ngay lập tức để giữ imageCoverData
+      
         UserDefaults.standard.removeObject(forKey: "trips_cache_timestamp")
         cacheTimestamp = nil
         trips.removeAll()
@@ -371,11 +385,11 @@ class TripViewModel: ObservableObject {
             guard let self else { return }
             self.isRefreshing = false
             if self.trips.isEmpty && self.isOffline {
-                self.showToast(message: "Không có kết nối mạng và không có dữ liệu cache!")
+                self.showToast(message: "Không có kết nối mạng và không có dữ liệu cache!", type: ToastType.error)
             } else if self.trips.isEmpty {
-                self.showToast(message: "Không có chuyến đi nào được tải về!")
+                self.showToast(message: "Không có chuyến đi nào được tải về!", type: ToastType.error)
             } else {
-                self.showToast(message: "Làm mới danh sách chuyến đi thành công!")
+                self.showToast(message: "Làm mới danh sách chuyến đi thành công!", type: ToastType.success)
             }
             print("✅ Hoàn tất refresh trips với \(self.trips.count) chuyến đi")
         }
@@ -383,9 +397,18 @@ class TripViewModel: ObservableObject {
     
     func handleTripUpdate(_ trip: TripModel) {
         if let index = trips.firstIndex(where: { $0.id == trip.id }) {
+            print("🔍 Trước khi cập nhật: startDate: \(trips[index].startDate), endDate: \(trips[index].endDate)")
             trips[index] = trip
+            print("🔍 Sau khi cập nhật: startDate: \(trip.startDate), endDate: \(trip.endDate)")
             saveToCache(trips: self.trips)
             print("🔄 Đã cập nhật trip ID: \(trip.id) trong danh sách")
+            
+            // Gửi thông báo để làm mới tripDays
+            NotificationCenter.default.post(
+                name: NSNotification.Name("TripUpdated"),
+                object: nil,
+                userInfo: ["tripId": trip.id]
+            )
         }
     }
     
@@ -404,6 +427,29 @@ class TripViewModel: ObservableObject {
     }
     
     // MARK: - Private Methods
+    private func downloadImageData(from urlString: String, completion: @escaping (Data?) -> Void) {
+        guard let url = URL(string: urlString) else {
+            print("❌ Invalid image URL: \(urlString)")
+            completion(nil)
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ Error downloading image: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+                guard let data = data, let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                    print("❌ Failed to download image: Invalid response")
+                    completion(nil)
+                    return
+                }
+                completion(data)
+            }
+        }.resume()
+    }
     private func setupNetworkMonitor() {
         networkMonitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
@@ -472,7 +518,7 @@ class TripViewModel: ObservableObject {
             return trips.isEmpty ? nil : trips
         } catch {
             print("❌ Lỗi khi đọc cache: \(error.localizedDescription)")
-            showToast(message: "Dữ liệu cache bị lỗi, đang thử tải từ server...")
+            showToast(message: "Dữ liệu cache bị lỗi, đang thử tải từ server...", type: ToastType.error)
             if !isOffline {
                 fetchTrips()
             }
@@ -493,14 +539,19 @@ class TripViewModel: ObservableObject {
         }
     }
     
-    private func showToast(message: String) {
-        print("📢 Đặt toast: \(message)")
-        toastMessage = message
-        showToast = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            print("📢 Ẩn toast")
-            self.showToast = false
-            self.toastMessage = nil
+    func showToast(message: String, type: ToastType) {
+            print("📢 Đặt toast: \(message) với type: \(type)")
+            DispatchQueue.main.async {
+                self.toastMessage = message
+                self.toastType = type
+                self.showToast = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                    print("📢 Ẩn toast")
+                    self.showToast = false
+                    self.toastMessage = nil
+                    self.toastType = nil
+                }
+            }
         }
-    }
+    
 }

@@ -12,6 +12,7 @@ struct CreateTripView: View {
     @State private var newTripAddress: String = ""
     @State private var newTripStartDate = Date()
     @State private var newTripEndDate = Date()
+    
     @State private var showLocationSearch: Bool = false
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
@@ -23,16 +24,18 @@ struct CreateTripView: View {
 
     var body: some View {
         ScrollView {
-            headerView
-            formView
-            Spacer()
+            VStack{
+                headerView
+                formView
+            }
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text("Lỗi"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            }
         }
         .background(Color.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .alert(isPresented: $showAlert) {
-            Alert(title: Text("Lỗi"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-        }
+        
     }
     
     private var headerView: some View {
@@ -167,7 +170,7 @@ struct CreateTripView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(newTripName.isEmpty || isUploading)
+        .disabled(isUploading)
         .padding(.horizontal)
     }
     
@@ -199,13 +202,18 @@ struct CreateTripView: View {
     
     private func addTrip() {
         guard !newTripName.isEmpty else {
-            alertMessage = "Vui lòng nhập tên chuyến đi"
-            showAlert = true
-            return
-        }
-        
-        guard !newTripAddress.isEmpty else {
-            alertMessage = "Vui lòng nhập địa chỉ"
+                alertMessage = "Vui lòng nhập tên chuyến đi"
+                showAlert = true
+                return
+            }
+            
+            guard !newTripAddress.isEmpty else {
+                alertMessage = "Vui lòng nhập địa chỉ"
+                showAlert = true
+                return
+            }
+        guard newTripEndDate >= newTripStartDate else {
+            alertMessage = "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu"
             showAlert = true
             return
         }

@@ -1,9 +1,12 @@
 import SwiftUI
+import PhotosUI
+import Cloudinary
 
 struct EditTripView: View {
     @EnvironmentObject private var viewModel: TripViewModel
     @EnvironmentObject var navManager: NavigationManager
-    let trip: TripModel // TripModel để hiển thị thông tin hiện tại
+    let trip: TripModel
+    @StateObject private var cloudinaryManager = CloudinaryManager()
     
     @State private var tripName: String
     @State private var tripDescription: String
@@ -14,15 +17,23 @@ struct EditTripView: View {
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
     
-    // Khởi tạo với giá trị từ TripModel
+    @State private var selectedImage: UIImage? // Lưu ảnh được chọn
+    @State private var selectedPhotoItem: PhotosPickerItem? // Cho PhotosPicker
+    @State private var isUploading: Bool = false // Trạng thái upload
+    @State private var imageCoverUrl: String? // Lưu URL ảnh bìa
+    @State private var imageCoverData: Data? // Lưu dữ liệu ảnh
+    
     init(trip: TripModel) {
         self.trip = trip
         self._tripName = State(initialValue: trip.name)
         self._tripDescription = State(initialValue: trip.description ?? "")
         self._tripAddress = State(initialValue: trip.address ?? "")
-        // Chuyển đổi String thành Date
         self._tripStartDate = State(initialValue: Formatter.apiDateFormatter.date(from: trip.startDate) ?? Date())
         self._tripEndDate = State(initialValue: Formatter.apiDateFormatter.date(from: trip.endDate) ?? Date())
+        self._imageCoverUrl = State(initialValue: trip.imageCoverUrl)
+        self._imageCoverData = State(initialValue: trip.imageCoverData)
+        // Khởi tạo selectedImage từ imageCoverData nếu có
+        self._selectedImage = State(initialValue: trip.imageCoverData.flatMap { UIImage(data: $0) })
     }
     
     var body: some View {
@@ -65,17 +76,61 @@ struct EditTripView: View {
             VStack(alignment: .leading, spacing: 7) {
                 Text("Ảnh bìa")
                     .font(.system(size: 16, weight: .medium))
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                        .frame(height: 150)
-                        .frame(maxWidth: .infinity)
-                        .foregroundColor(Color.pink)
-                    Image(systemName: "photo.badge.plus")
-                        .font(.system(size: 30, weight: .bold))
-                        .foregroundColor(Color.pink)
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
+                            .frame(height: 150)
+                            .frame(maxWidth: .infinity)
+                            .foregroundColor(Color.pink)
+                        if let selectedImage = selectedImage {
+                            Image(uiImage: selectedImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(height: 150)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.Button, lineWidth: 2)
+                                )
+                        } else if let url = imageCoverUrl, !url.isEmpty {
+                            AsyncImage(url: URL(string: url)) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(height: 150)
+                                    .frame(maxWidth: .infinity)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color.Button, lineWidth: 2)
+                                    )
+                            } placeholder: {
+                                ProgressView()
+                            }
+                        } else {
+                            Image(systemName: "photo.badge.plus")
+                                .font(.system(size: 30, weight: .bold))
+                                .foregroundColor(Color.pink)
+                        }
+                        if isUploading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(1.5)
+                        }
+                    }
                 }
                 .padding(.bottom)
+                .onChange(of: selectedPhotoItem) { newItem in
+                    Task {
+                        if let data = try? await newItem?.loadTransferable(type: Data.self),
+                           let uiImage = UIImage(data: data) {
+                            selectedImage = uiImage
+                            uploadImageToCloudinary()
+                        }
+                    }
+                }
                 
                 Text("Hãy đặt tên cho chuyến đi của bạn")
                     .font(.system(size: 16, weight: .medium))
@@ -105,7 +160,7 @@ struct EditTripView: View {
                 .sheet(isPresented: $showLocationSearch) {
                     LocationSearchView(
                         initialLocation: tripAddress.isEmpty ? "Đà Lạt" : tripAddress,
-                        date: tripStartDate, // Bây giờ là Date
+                        date: tripStartDate,
                         selectedLocation: $tripAddress
                     )
                     .presentationDetents([.medium, .large])
@@ -142,11 +197,70 @@ struct EditTripView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(tripName.isEmpty || tripAddress.isEmpty || tripEndDate < tripStartDate)
+        .disabled(isUploading)
         .padding(.horizontal)
     }
     
-    // MARK: - Logic
+    private func uploadImageToCloudinary() {
+        guard let image = selectedImage else {
+            isUploading = false
+            showAlert = true
+            alertMessage = "Không có ảnh được chọn"
+            return
+        }
+        
+        isUploading = true
+        
+        // Hàm để upload ảnh mới
+        let uploadNewImage = { [self] in
+            cloudinaryManager.uploadImageCover(image: image) { result in
+                DispatchQueue.main.async {
+                    self.isUploading = false
+                    switch result {
+                    case .success(let (url, publicId, data)):
+                        self.imageCoverUrl = url
+                        self.imageCoverData = data
+                        print("📸 Uploaded image, URL: \(url), publicId: \(publicId), imageData size: \(data.count) bytes")
+                    case .failure(let error):
+                        self.showAlert = true
+                        self.alertMessage = "Lỗi khi upload ảnh: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+        
+        
+        if let currentImageCoverUrl = imageCoverUrl, !currentImageCoverUrl.isEmpty {
+            let components = currentImageCoverUrl.components(separatedBy: "/")
+            if let uploadIndex = components.firstIndex(of: "upload"), components.count > uploadIndex + 2 {
+                let startIndex = uploadIndex + 2
+                let endIndex = components.count - 1
+                let fileComponent = components[endIndex].components(separatedBy: ".")[0]
+                let publicIdComponents = components[startIndex..<endIndex] + [fileComponent]
+                let publicId = publicIdComponents.joined(separator: "/")
+                
+                // Xóa ảnh cũ trên Cloudinary
+                cloudinaryManager.deleteImage(publicId: publicId) { result in
+                    switch result {
+                    case .success:
+                        print("🗑️ Xóa ảnh cũ thành công: \(publicId)")
+                        uploadNewImage()
+                    case .failure(let error):
+                        print("❌ Lỗi xóa ảnh cũ: \(error.localizedDescription), publicId: \(publicId)")
+                        self.showAlert = true
+                        self.alertMessage = "Lỗi khi xóa ảnh cũ, nhưng vẫn tiếp tục upload ảnh mới"
+                        uploadNewImage()
+                    }
+                }
+            } else {
+                print("⚠️ Không thể trích xuất publicId từ URL: \(currentImageCoverUrl)")
+                uploadNewImage()
+            }
+        } else {
+            print("⚠️ Không có imageCoverUrl, tiến hành upload ảnh mới")
+            uploadNewImage()
+        }
+    }
     
     private func updateTrip() {
         guard !tripName.isEmpty else {
@@ -177,15 +291,21 @@ struct EditTripView: View {
             startDate: start,
             endDate: end,
             address: tripAddress,
-            imageCoverUrl: trip.imageCoverUrl,
-            imageCoverData: trip.imageCoverData // Giữ nguyên imageCoverUrl từ trip ban đầu
-        ) { success in
-            if success {
-                navManager.goBack()
-            } else {
-                alertMessage = "Cập nhật thất bại"
-                showAlert = true
+            imageCoverUrl: imageCoverUrl, // Sử dụng State variable
+            imageCoverData: imageCoverData, // Sử dụng State variable
+            completion: { success in
+                if success {
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("TripUpdated"),
+                        object: nil,
+                        userInfo: ["tripId": trip.id]
+                    )
+                    navManager.goBack()
+                } else {
+                    alertMessage = "Cập nhật thất bại"
+                    showAlert = true
+                }
             }
-        }
+        )
     }
 }

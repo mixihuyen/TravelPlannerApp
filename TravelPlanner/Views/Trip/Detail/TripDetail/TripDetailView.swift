@@ -30,32 +30,6 @@ struct TripDetailView: View {
                                             .frame(height: 200)
                                             .ignoresSafeArea()
                                     )
-                            } else if let urlString = trip.imageCoverUrl, let url = URL(string: urlString) {
-                                AsyncImage(url: url) { image in
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(height: 200)
-                                        .ignoresSafeArea()
-                                        .mask(
-                                            Rectangle()
-                                                .fill(Color.retangleBackground)
-                                                .frame(height: 200)
-                                                .ignoresSafeArea()
-                                        )
-                                } placeholder: {
-                                    Image("default_image")
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(height: 200)
-                                        .ignoresSafeArea()
-                                        .mask(
-                                            Rectangle()
-                                                .fill(Color.retangleBackground)
-                                                .frame(height: 200)
-                                                .ignoresSafeArea()
-                                        )
-                                }
                             } else {
                                 Image("default_image")
                                     .resizable()
@@ -79,6 +53,25 @@ struct TripDetailView: View {
                                     .resizable()
                                     .frame(width: 93, height: 101)
                                 VStack(alignment: .leading) {
+                                    HStack{
+                                        Image(systemName: "globe.europe.africa.fill")
+                                            .foregroundColor(Color.white)
+                                            .frame(width: 16, height: 16)
+                                        Text("Công khai")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white)
+                                    }
+                                    HStack (alignment: .bottom){
+                                        Image(systemName: "lock.fill")
+                                            .foregroundColor(Color.white)
+                                            .frame(width: 16, height: 16)
+                                        Text("Riêng tư")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white)
+                                    }
+                                    
+                                    
+                                    
                                     Text(trip.name)
                                         .font(.system(size: 20))
                                         .bold()
@@ -87,20 +80,16 @@ struct TripDetailView: View {
                                         .foregroundColor(.white)
                                         .font(.system(size: 12))
                                 }
-                                .padding(.top, 40)
                                 Spacer()
                                 Button(action: {
                                     navManager.path.append(Route.editTrip(trip: trip)) // Điều hướng đến EditTripView
                                 }) {
-                                    Image(systemName: "pencil")
+                                    Image(systemName: "square.and.pencil.circle.fill")
                                         .foregroundColor(.white)
-                                        .font(.system(size: 20))
-                                        .padding()
-                                        .background(Circle().fill(Color.gray.opacity(0.5)))
+                                        .font(.system(size: 24))
                                 }
-                                .padding(.top, 40)
                             }
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal)
                         }
                         .padding(.bottom, 40)
                         
@@ -120,7 +109,7 @@ struct TripDetailView: View {
                                         Button {
                                             viewModel.getTripDayId(for: date) { tripDayId in
                                                 guard let tripDayId = tripDayId else {
-                                                    viewModel.showToast(message: "Không tìm thấy ngày chuyến đi")
+                                                    viewModel.showToast(message: "Không tìm thấy ngày chuyến đi", type: .error)
                                                     return
                                                 }
                                                 let route = Route.activity(date: date, activities: viewModel.activities(for: date), trip: trip, tripDayId: tripDayId)
@@ -139,23 +128,20 @@ struct TripDetailView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal)
                     }
                     .padding(.bottom, 87)
                 }
                 .ignoresSafeArea()
                 
-                if viewModel.showToast, let toastMessage = viewModel.toastMessage {
-                    VStack {
-                        Spacer()
-                        Text(toastMessage)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.8))
-                            .cornerRadius(10)
-                            .padding(.bottom, 100)
-                    }
-                }
+                .overlay(
+                    Group {
+                        if viewModel.showToast, let message = viewModel.toastMessage, let type = viewModel.toastType {
+                            ToastView(message: message, type: type)
+                        }
+                    },
+                    alignment: .bottom
+                )
             } else {
                 Text("Không tìm thấy chuyến đi")
                     .foregroundColor(.white)
@@ -166,6 +152,22 @@ struct TripDetailView: View {
             viewModel.fetchTripDays(completion: {
                 print("📅 Đã làm mới tripDays khi TripDetailView xuất hiện")
             }, forceRefresh: false)
+        }
+        .onChange(of: tripViewModel.trips) { newTrips in
+            print("🔄 Trips đã thay đổi, tìm trip ID: \(tripId)")
+            if let updatedTrip = newTrips.first(where: { $0.id == tripId }) {
+                print("🔍 Trip được tìm thấy: startDate: \(updatedTrip.startDate), endDate: \(updatedTrip.endDate)")
+            } else {
+                print("❌ Không tìm thấy trip với ID: \(tripId)")
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("TripUpdated"))) { notification in
+            if let tripId = notification.userInfo?["tripId"] as? Int, tripId == self.tripId {
+                print("🔄 Nhận thông báo TripUpdated cho tripId=\(tripId), làm mới tripDays")
+                viewModel.fetchTripDays(completion: {
+                    print("📅 Đã làm mới tripDays sau khi cập nhật chuyến đi")
+                }, forceRefresh: true)
+            }
         }
     }
 }

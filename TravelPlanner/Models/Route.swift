@@ -17,6 +17,6 @@ enum Route: Hashable {
     case activity(date: Date, activities: [TripActivity], trip: TripModel, tripDayId: Int)
     case addActivity(date: Date, trip: TripModel, tripDayId: Int)
     case editActivity(date: Date, activity: TripActivity, trip: TripModel, tripDayId: Int)
-    
+    case activityImages(tripId: Int, tripDayId: Int, activityId: Int)
     
 }

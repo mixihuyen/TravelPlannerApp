@@ -226,17 +226,6 @@ struct SearchUsersView: View {
                     .padding()
                 }
                 .padding(.horizontal)
-                
-                // Error Toast using SuccessToastView
-                if showErrorToast {
-                    SuccessToastView(message: errorToastMessage)
-                        .offset(y: -50)
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                showErrorToast = false
-                            }
-                        }
-                }
             }
             .onAppear {
                 participantViewModel.fetchParticipants(tripId: trip.id)

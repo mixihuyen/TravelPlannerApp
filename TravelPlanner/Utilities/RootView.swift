@@ -69,7 +69,12 @@ struct RootView: View {
                         EditActivityView(selectedDate: date, trip: trip, activity: activity, tripDayId: tripDayId)
                             .environmentObject(navManager)
                             .environmentObject(tripDetailViewModel)
+                    case .activityImages(let tripId, let tripDayId, let activityId):
+                                            ActivityImagesView(tripId: tripId, tripDayId: tripDayId, activityId: activityId)
+                                                .environmentObject(navManager)
+                                        
                     }
+                    
                 }
             }
         }
