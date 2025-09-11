@@ -84,33 +84,6 @@ Travel Planner offers a rich set of features to make trip planning seamless and 
 
 ---
 
-## 📱 Usage
-1. **Sign Up/Login**:  
-   - Register with your email and verify using OTP sent to your inbox.  
-   - Log in to access your personalized dashboard.  
-
-2. **Plan a Trip**:  
-   - Tap "New Trip" to add a destination, dates, and budget.  
-   - Invite collaborators via email to co-edit the itinerary.  
-   - Add activities with details like time, location, and notes.  
-
-3. **Manage Packing Lists**:  
-   - Create a packing list for your trip and categorize items.  
-   - Check off items as you pack, and share the list with travel companions.  
-   - Use offline mode to edit lists during travel.  
-
-4. **Share Moments in the Feed**:  
-   - Upload photos with captions to share your travel experiences.  
-   - Browse, like, and comment on posts from friends or groups.  
-   - Organize photos into trip-specific albums.  
-
-5. **Explore and Customize**:  
-   - Switch between light and dark modes in settings.  
-   - Filter trips by category or search for specific activities.  
-
-
----
-
 ## 🤝 Contributing
 We welcome contributions to make Travel Planner even better! To contribute:
 1. Fork the repository.  
