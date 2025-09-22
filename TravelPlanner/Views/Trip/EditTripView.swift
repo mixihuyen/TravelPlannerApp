@@ -1,13 +1,13 @@
 import SwiftUI
 import PhotosUI
-import Cloudinary
 
 struct EditTripView: View {
-    @EnvironmentObject private var viewModel: TripViewModel
+    @Environment(\.horizontalSizeClass) var size
+    @EnvironmentObject private var tripViewModel: TripViewModel
     @EnvironmentObject var navManager: NavigationManager
     let trip: TripModel
-    @StateObject private var cloudinaryManager = CloudinaryManager()
     
+    @StateObject private var imageViewModel = ImageViewModel()
     @State private var tripName: String
     @State private var tripDescription: String
     @State private var tripAddress: String
@@ -19,10 +19,9 @@ struct EditTripView: View {
     
     @State private var selectedImage: UIImage? // Lưu ảnh được chọn
     @State private var selectedPhotoItem: PhotosPickerItem? // Cho PhotosPicker
-    @State private var isUploading: Bool = false // Trạng thái upload
-    @State private var imageCoverUrl: String? // Lưu URL ảnh bìa
     @State private var imageCoverData: Data? // Lưu dữ liệu ảnh
     @State private var isPublic: Bool = false
+    @State private var isUpdating: Bool = false
     
     init(trip: TripModel) {
         self.trip = trip
@@ -31,24 +30,45 @@ struct EditTripView: View {
         self._tripAddress = State(initialValue: trip.address ?? "")
         self._tripStartDate = State(initialValue: Formatter.apiDateFormatter.date(from: trip.startDate) ?? Date())
         self._tripEndDate = State(initialValue: Formatter.apiDateFormatter.date(from: trip.endDate) ?? Date())
-        self._imageCoverUrl = State(initialValue: trip.imageCoverUrl)
         self._imageCoverData = State(initialValue: trip.imageCoverData)
-        // Khởi tạo selectedImage từ imageCoverData nếu có
+        self._isPublic = State(initialValue: trip.isPublic)
         self._selectedImage = State(initialValue: trip.imageCoverData.flatMap { UIImage(data: $0) })
     }
     
     var body: some View {
-        ScrollView {
-            headerView
-            formView
-            Spacer()
+        ZStack {
+            Color.background
+                .ignoresSafeArea()
+            ScrollView {
+                headerView
+                formView
+                Spacer()
+            }
+            .frame(
+                maxWidth: size == .regular ? 600 : .infinity,
+                alignment: .center
+            )
         }
-        .background(Color.background.ignoresSafeArea())
+        
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Lỗi"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
+        .onReceive(imageViewModel.$showToast) { show in
+            if show, let message = imageViewModel.toastMessage, let type = imageViewModel.toastType {
+                tripViewModel.showToast(message: message, type: type)
+            }
+        }
+        .overlay {
+                if isUpdating {
+                    ZStack {
+                        Color.black.opacity(0.4)                             .ignoresSafeArea()
+                         LottieView(animationName: "loading2")
+                             .frame(width: 50, height: 50)
+                    }
+                }
+            }
     }
     
     private var headerView: some View {
@@ -95,7 +115,7 @@ struct EditTripView: View {
                                     RoundedRectangle(cornerRadius: 16)
                                         .stroke(Color.Button, lineWidth: 2)
                                 )
-                        } else if let url = imageCoverUrl, !url.isEmpty {
+                        } else if let url = trip.coverImageInfo?.url, !url.isEmpty {
                             AsyncImage(url: URL(string: url)) { image in
                                 image
                                     .resizable()
@@ -115,7 +135,7 @@ struct EditTripView: View {
                                 .font(.system(size: 30, weight: .bold))
                                 .foregroundColor(Color.pink)
                         }
-                        if isUploading {
+                        if imageViewModel.isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle())
                                 .scaleEffect(1.5)
@@ -128,7 +148,10 @@ struct EditTripView: View {
                         if let data = try? await newItem?.loadTransferable(type: Data.self),
                            let uiImage = UIImage(data: data) {
                             selectedImage = uiImage
-                            uploadImageToCloudinary()
+                            imageCoverData = data
+                        } else {
+                            showAlert = true
+                            alertMessage = "Không thể tải ảnh được chọn"
                         }
                     }
                 }
@@ -161,7 +184,6 @@ struct EditTripView: View {
                 .sheet(isPresented: $showLocationSearch) {
                     LocationSearchView(
                         initialLocation: tripAddress.isEmpty ? "Đà Lạt" : tripAddress,
-                        date: tripStartDate,
                         selectedLocation: $tripAddress
                     )
                     .presentationDetents([.medium, .large])
@@ -204,69 +226,8 @@ struct EditTripView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(isUploading)
+        .disabled(imageViewModel.isLoading)
         .padding(.horizontal)
-    }
-    
-    private func uploadImageToCloudinary() {
-        guard let image = selectedImage else {
-            isUploading = false
-            showAlert = true
-            alertMessage = "Không có ảnh được chọn"
-            return
-        }
-        
-        isUploading = true
-        
-        // Hàm để upload ảnh mới
-        let uploadNewImage = { [self] in
-            cloudinaryManager.uploadImageCover(image: image) { result in
-                DispatchQueue.main.async {
-                    self.isUploading = false
-                    switch result {
-                    case .success(let (url, publicId, data)):
-                        self.imageCoverUrl = url
-                        self.imageCoverData = data
-                        print("📸 Uploaded image, URL: \(url), publicId: \(publicId), imageData size: \(data.count) bytes")
-                    case .failure(let error):
-                        self.showAlert = true
-                        self.alertMessage = "Lỗi khi upload ảnh: \(error.localizedDescription)"
-                    }
-                }
-            }
-        }
-        
-        
-        if let currentImageCoverUrl = imageCoverUrl, !currentImageCoverUrl.isEmpty {
-            let components = currentImageCoverUrl.components(separatedBy: "/")
-            if let uploadIndex = components.firstIndex(of: "upload"), components.count > uploadIndex + 2 {
-                let startIndex = uploadIndex + 2
-                let endIndex = components.count - 1
-                let fileComponent = components[endIndex].components(separatedBy: ".")[0]
-                let publicIdComponents = components[startIndex..<endIndex] + [fileComponent]
-                let publicId = publicIdComponents.joined(separator: "/")
-                
-                // Xóa ảnh cũ trên Cloudinary
-                cloudinaryManager.deleteImage(publicId: publicId) { result in
-                    switch result {
-                    case .success:
-                        print("🗑️ Xóa ảnh cũ thành công: \(publicId)")
-                        uploadNewImage()
-                    case .failure(let error):
-                        print("❌ Lỗi xóa ảnh cũ: \(error.localizedDescription), publicId: \(publicId)")
-                        self.showAlert = true
-                        self.alertMessage = "Lỗi khi xóa ảnh cũ, nhưng vẫn tiếp tục upload ảnh mới"
-                        uploadNewImage()
-                    }
-                }
-            } else {
-                print("⚠️ Không thể trích xuất publicId từ URL: \(currentImageCoverUrl)")
-                uploadNewImage()
-            }
-        } else {
-            print("⚠️ Không có imageCoverUrl, tiến hành upload ảnh mới")
-            uploadNewImage()
-        }
     }
     
     private func updateTrip() {
@@ -291,29 +252,33 @@ struct EditTripView: View {
         let start = Formatter.apiDateFormatter.string(from: tripStartDate)
         let end = Formatter.apiDateFormatter.string(from: tripEndDate)
         
-        viewModel.updateTrip(
+        isUpdating = true
+        
+        tripViewModel.updateTrip(
             tripId: trip.id,
             name: tripName,
             description: tripDescription.isEmpty ? nil : tripDescription,
             startDate: start,
             endDate: end,
             address: tripAddress,
-            imageCoverUrl: imageCoverUrl, // Sử dụng State variable
-            imageCoverData: imageCoverData, // Sử dụng State variable
+            imageCoverData: imageCoverData,
             isPublic: isPublic,
             completion: { success in
-                if success {
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("TripUpdated"),
-                        object: nil,
-                        userInfo: ["tripId": trip.id]
-                    )
-                    navManager.goBack()
-                } else {
-                    alertMessage = "Cập nhật thất bại"
-                    showAlert = true
-                }
-            }
+                        DispatchQueue.main.async {
+                            isUpdating = false
+                            if success {
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("TripUpdated"),
+                                    object: nil,
+                                    userInfo: ["tripId": trip.id]
+                                )
+                                navManager.goBack()
+                            } else {
+                                alertMessage = "Cập nhật thất bại"
+                                showAlert = true
+                            }
+                        }
+                    }
         )
     }
 }

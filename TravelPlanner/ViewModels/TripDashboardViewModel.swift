@@ -28,6 +28,25 @@ class TripDashboardViewModel: ObservableObject {
         } else if !isOffline && tripId > 0 {
             fetchDashboard()
         }
+        NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleLogout),
+                name: .didLogout,
+                object: nil
+            )
+    }
+    @objc private func handleLogout() {
+        clearCacheOnLogout()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: .didLogout, object: nil)
+    }
+    
+    func clearCacheOnLogout() {
+        dashboard = nil
+        UserDefaults.standard.removeObject(forKey: "dashboard_cache_\(tripId)")
+        print("🗑️ Đã xóa cache dashboard cho tripId=\(tripId)")
     }
 
     func fetchDashboard(completion: (() -> Void)? = nil) {
@@ -166,6 +185,7 @@ class TripDashboardViewModel: ObservableObject {
             return try JSONDecoder().decode(TripDashboardModel.self, from: data)
         } catch {
             print("❌ Lỗi khi đọc cache: \(error.localizedDescription)")
+            UserDefaults.standard.removeObject(forKey: "dashboard_cache_\(tripId)")
             return nil
         }
     }

@@ -6,19 +6,18 @@ struct LocationSearchView: View {
     @Binding var selectedLocation: String
     @Environment(\.dismiss) private var dismiss
     
-    init(initialLocation: String, date: Date, selectedLocation: Binding<String>) {
-        self._viewModel = StateObject(wrappedValue: WeatherViewModel(location: initialLocation, date: date))
+    init(initialLocation: String, selectedLocation: Binding<String>) {
+        self._viewModel = StateObject(wrappedValue: WeatherViewModel(location: initialLocation))
         self._selectedLocation = selectedLocation
     }
     
     var body: some View {
         NavigationView {
             VStack {
-                    Text("Tìm kiếm địa điểm")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.top, 30)
-                    
+                Text("Tìm kiếm địa điểm")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.top, 30)
                 
                 CustomTextField(
                     placeholder: "Nhập địa điểm (ví dụ: Đà Lạt)",
@@ -29,7 +28,7 @@ struct LocationSearchView: View {
                         viewModel.locationSuggestions = []
                     },
                     showIcon: true,
-                                   iconName: "location.magnifyingglass"
+                    iconName: "location.magnifyingglass"
                 )
                 .padding()
                 .onChange(of: searchQuery) { newQuery in
@@ -78,7 +77,9 @@ struct LocationSearchView: View {
                 
                 Spacer()
             }
-            
+        }
+        .onAppear {
+            print("📍 LocationSearchView - initialLocation: \(selectedLocation)")
         }
     }
 }

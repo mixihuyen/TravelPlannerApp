@@ -2,49 +2,53 @@ import SwiftUI
 
 struct EditActivityView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.horizontalSizeClass) var size
     @EnvironmentObject var navManager: NavigationManager
-    let selectedDate: Date
-    let trip: TripModel
+    @EnvironmentObject var activityViewModel: ActivityViewModel // Sử dụng ActivityViewModel
+    let tripId: Int // Thay selectedDate và trip bằng tripId
     let activity: TripActivity
     let tripDayId: Int
-    @EnvironmentObject var viewModel: TripDetailViewModel
     @State private var activityName: String
     @State private var address: String
     @State private var startTime: Date
     @State private var endTime: Date
     @State private var estimatedCost: Double
-    @State private var actualCost: Double
+    @State private var actualCost: Double?
     @State private var note: String
     @State private var showDeleteAlert = false
     @State private var isSubmitting: Bool = false
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
     
-    
-    
-    init(selectedDate: Date, trip: TripModel, activity: TripActivity, tripDayId: Int) {
-        self.selectedDate = selectedDate
-        self.trip = trip
+    init(tripId: Int, activity: TripActivity, tripDayId: Int) {
+        self.tripId = tripId
         self.activity = activity
         self.tripDayId = tripDayId
         self._activityName = State(initialValue: activity.activity)
         self._address = State(initialValue: activity.address)
-        self._startTime = State(initialValue: Formatter.apiDateTimeFormatter.date(from: activity.startTime) ?? selectedDate)
-        self._endTime = State(initialValue: Formatter.apiDateTimeFormatter.date(from: activity.endTime) ?? selectedDate.addingTimeInterval(3600))
+        self._startTime = State(initialValue: Formatter.apiDateTimeFormatter.date(from: activity.startTime) ?? Date())
+        self._endTime = State(initialValue: Formatter.apiDateTimeFormatter.date(from: activity.endTime) ?? Date().addingTimeInterval(3600))
         self._estimatedCost = State(initialValue: activity.estimatedCost)
         self._actualCost = State(initialValue: activity.actualCost)
         self._note = State(initialValue: activity.note)
     }
     
     var body: some View {
-        ScrollView {
-            VStack {
-                headerView
-                formView
-                Spacer()
+        ZStack {
+            Color.background
+                .edgesIgnoringSafeArea(.all)
+            ScrollView {
+                VStack {
+                    headerView
+                    formView
+                    Spacer()
+                }
+                .frame(
+                    maxWidth: size == .regular ? 600 : .infinity,
+                    alignment: .center
+                )
             }
         }
-        .background(Color.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert(isPresented: $showAlert) {
@@ -87,7 +91,7 @@ struct EditActivityView: View {
     
     private var formView: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("THÔNG TIN CHUYẾN ĐI")
+            Text("THÔNG TIN HOẠT ĐỘNG")
                 .font(.system(size: 16))
                 .fontWeight(.bold)
                 .foregroundColor(.white)
@@ -154,7 +158,12 @@ struct EditActivityView: View {
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                     HStack {
-                        CustomNumberTextField(value: $actualCost)
+                        CustomNumberTextField(value: Binding(
+                            get: { actualCost ?? 0 },
+                            set: { newValue in
+                                actualCost = newValue == 0 ? nil : newValue
+                            }
+                        ))
                         Text("đ")
                             .font(.system(size: 16))
                             .foregroundColor(.white)
@@ -235,10 +244,15 @@ struct EditActivityView: View {
             return
         }
         
-        guard estimatedCost >= 0, actualCost >= 0 else {
-            alertMessage = "Chi phí không được âm"
+        guard estimatedCost >= 0 else {
+            alertMessage = "Chi phí dự kiến không được âm"
             showAlert = true
-            
+            return
+        }
+        
+        if let actualCostValue = actualCost, actualCostValue < 0 {
+            alertMessage = "Chi phí thực tế không được âm"
+            showAlert = true
             return
         }
         
@@ -256,22 +270,22 @@ struct EditActivityView: View {
             note: note,
             createdAt: activity.createdAt,
             updatedAt: activity.updatedAt,
-            images: activity.images ?? []
+            activityImages: activity.activityImages ?? []
         )
         
-        viewModel.updateActivity(trip: trip, date: selectedDate, activity: updatedActivity) { result in
+        activityViewModel.updateActivityInfo(tripDayId: tripDayId, activity: updatedActivity) { result in
             DispatchQueue.main.async {
                 isSubmitting = false
                 switch result {
                 case .success(let updatedActivity):
-                    print("✅ Đã cập nhật hoạt động: \(updatedActivity.activity)")
-                    viewModel.showToast(message: "Đã cập nhật hoạt động: \(updatedActivity.activity)", type: ToastType.success)
+                    print("✅ Đã cập nhật thông tin hoạt động: \(updatedActivity.activity)")
+                    activityViewModel.showToast(message: "Đã cập nhật thông tin hoạt động: \(updatedActivity.activity)", type: .success)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.navManager.goBack()
                     }
                 case .failure(let error):
-                    print("❌ Lỗi khi cập nhật hoạt động: \(error.localizedDescription)")
-                    viewModel.showToast(message: "Lỗi khi cập nhật hoạt động: \(error.localizedDescription)", type: .error)
+                    print("❌ Lỗi khi cập nhật thông tin hoạt động: \(error.localizedDescription)")
+                    activityViewModel.showToast(message: "Lỗi khi cập nhật thông tin hoạt động: \(error.localizedDescription)", type: .error)
                 }
             }
         }
@@ -279,11 +293,11 @@ struct EditActivityView: View {
     
     private func deleteActivity() {
         isSubmitting = true
-        viewModel.deleteActivity(activityId: activity.id, tripDayId: tripDayId) {
+        activityViewModel.deleteActivity(activityId: activity.id, tripDayId: tripDayId) {
             DispatchQueue.main.async {
                 isSubmitting = false
                 print("📋 Đã xóa hoạt động và làm mới danh sách")
-                viewModel.showToast(message: "Đã xóa hoạt động", type: ToastType.success)
+                activityViewModel.showToast(message: "Đã xóa hoạt động", type: .success)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.navManager.goBack()
                 }

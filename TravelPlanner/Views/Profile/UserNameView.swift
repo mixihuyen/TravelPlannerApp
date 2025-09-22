@@ -1,13 +1,19 @@
 import SwiftUI
+import Combine
 
 struct UserNameView: View {
     @State private var username: String = ""
     @State private var isLoading: Bool = false
     @State private var alertMessage: String? = nil
     @State private var showAlert: Bool = false
+    @State private var cancellables = Set<AnyCancellable>()
+    @EnvironmentObject var authManager: AuthManager
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @EnvironmentObject var navManager: NavigationManager
+
+    // Tạo instance của AuthService
+    private let authService = AuthService()
 
     var body: some View {
         ZStack {
@@ -43,14 +49,28 @@ struct UserNameView: View {
                     }
 
                     isLoading = true
-                    AuthService.updateUserProfile(firstName: nil, lastName: nil, username: username) { success, message in
-                        if success {
-                            navManager.go(to: .homeTabBar)
-                        } else {
-                            alertMessage = message
-                            showAlert = true
+                    authService.updateUserProfile(firstName: nil, lastName: nil, username: username)
+                        .receive(on: DispatchQueue.main)
+                        .sink { completion in
+                            isLoading = false
+                            switch completion {
+                            case .failure(let error):
+                                alertMessage = error.localizedDescription
+                                showAlert = true
+                            case .finished:
+                                break
+                            }
+                        } receiveValue: { response in
+                            if response.success && (200...299).contains(response.statusCode) {
+                                UserDefaults.standard.set(username, forKey: "username")
+                                authManager.username = username
+                                navManager.go(to: .homeTabBar)
+                            } else {
+                                alertMessage = response.message
+                                showAlert = true
+                            }
                         }
-                    }
+                        .store(in: &cancellables)
                 }) {
                     if isLoading {
                         ProgressView()
@@ -72,7 +92,7 @@ struct UserNameView: View {
         }
         .navigationBarBackButtonHidden(true)
         .alert(isPresented: $showAlert) {
-            Alert(title: Text("Lỗi"), message: Text(alertMessage ?? ""), dismissButton: .default(Text("OK")))
+            Alert(title: Text("Lỗi"), message: Text(alertMessage ?? "Đã xảy ra lỗi không xác định"), dismissButton: .default(Text("OK")))
         }
     }
 }

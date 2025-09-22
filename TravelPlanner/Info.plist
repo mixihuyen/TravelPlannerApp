@@ -4,12 +4,6 @@
 <dict>
     <key>BASE_URL</key>
     <string>$(BASE_URL)</string>
-    <key>CLOUDINARY_CLOUD_NAME</key>
-    <string>$(CLOUDINARY_CLOUD_NAME)</string>
-    <key>CLOUDINARY_API_KEY</key>
-    <string>$(CLOUDINARY_API_KEY)</string>
-    <key>CLOUDINARY_UPLOAD_PRESET</key>
-    <string>$(CLOUDINARY_UPLOAD_PRESET)</string>
     <key>WEATHER_API</key>
     <string>$(WEATHER_API)</string>
     <key>NSCameraUsageDescription</key>
@@ -35,5 +29,16 @@
 			</dict>
 		</dict>
 	</dict>
+    <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLName</key>
+                <string>com.yourcompany.app</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>myapp</string>
+                </array>
+            </dict>
+        </array>
 </dict>
 </plist>

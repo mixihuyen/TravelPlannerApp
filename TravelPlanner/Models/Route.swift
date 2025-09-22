@@ -10,13 +10,13 @@ enum Route: Hashable {
     case usernameView
     case homeTabBar
     case tripView
-    case tripDetailView(trip: TripModel)
+    case tripDetailView(tripId: Int)
     case createTrip
     case editTrip(trip: TripModel)
-    case tabBarView(trip: TripModel)
-    case activity(date: Date, activities: [TripActivity], trip: TripModel, tripDayId: Int)
-    case addActivity(date: Date, trip: TripModel, tripDayId: Int)
-    case editActivity(date: Date, activity: TripActivity, trip: TripModel, tripDayId: Int)
+    case tabBarView(tripId: Int)
+    case activity(tripId: Int, tripDayId: Int)
+    case addActivity(tripId: Int, tripDayId: Int)
+    case editActivity(tripId: Int, tripDayId: Int, activity: TripActivity)
     case activityImages(tripId: Int, tripDayId: Int, activityId: Int)
     
 }
