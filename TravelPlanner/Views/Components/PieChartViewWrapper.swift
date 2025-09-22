@@ -54,13 +54,24 @@ struct PieChartViewWrapper: UIViewRepresentable {
     }
 
     private func makePieEntries(from activities: [TripActivity]) -> [PieChartDataEntry] {
-        let total = activities.map { $0.actualCost }.reduce(0, +)
+        // Calculate total, excluding nil values and using 0.0 for invalid costs
+        let total = activities.compactMap { $0.actualCost }.reduce(0.0, +)
+        
+        // Avoid division by zero
+        guard total > 0 else {
+            print("⚠️ Total actual cost is 0, returning empty entries")
+            return []
+        }
+        
         return activities.compactMap { activity in
-            guard activity.actualCost > 0 else { return nil }
-            let percent = activity.actualCost / total
+            guard let actualCost = activity.actualCost, actualCost > 0 else {
+                print("⚠️ Skipping activity '\(activity.activity)' with actualCost: \(String(describing: activity.actualCost))")
+                return nil
+            }
+            let percent = actualCost / total
             let shouldShowLabel = percent >= 0.15
             let shortLabel = shouldShowLabel ? (activity.activity.count > 12 ? String(activity.activity.prefix(10)) + "..." : activity.activity) : nil
-            let entry = PieChartDataEntry(value: activity.actualCost, label: shortLabel)
+            let entry = PieChartDataEntry(value: actualCost, label: shortLabel)
             entry.data = activity.activity as NSString
             return entry
         }

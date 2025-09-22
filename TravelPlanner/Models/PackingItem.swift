@@ -7,38 +7,38 @@ struct PackingItem: Identifiable, Codable, Equatable {
     var name: String
     var isPacked: Bool
     var isShared: Bool
-    var userId: Int?
+    var createdByUserId: Int
+    var assignedToUserId: Int? // Giữ là Int?
     var quantity: Int
     var note: String?
 
-    init(id: Int = 0, name: String, isPacked: Bool, isShared: Bool, userId: Int? = nil, quantity: Int = 1, note: String? = nil) {
+    init(id: Int = 0, name: String, isPacked: Bool, isShared: Bool, createdByUserId: Int, assignedToUserId: Int? = nil, quantity: Int = 1, note: String? = nil) {
         self.id = id
         self.name = name
         self.isPacked = isPacked
         self.isShared = isShared
-        self.userId = userId
+        self.createdByUserId = createdByUserId
+        self.assignedToUserId = assignedToUserId
         self.quantity = quantity
         self.note = note
     }
 
     enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case quantity
-        case note
+        case id, name, quantity, note
         case isShared = "is_shared"
         case isPacked = "is_packed"
-        case userId = "user_id"
+        case createdByUserId = "created_by_user_id"
+        case assignedToUserId = "assigned_to_user_id"
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        // Note: id is not encoded as it is server-generated
         try container.encode(name, forKey: .name)
         try container.encode(quantity, forKey: .quantity)
         try container.encode(isShared, forKey: .isShared)
         try container.encode(isPacked, forKey: .isPacked)
-        try container.encodeIfPresent(userId, forKey: .userId)
+        try container.encode(createdByUserId, forKey: .createdByUserId)
+        try container.encodeIfPresent(assignedToUserId, forKey: .assignedToUserId)
         try container.encodeIfPresent(note, forKey: .note)
     }
 
@@ -47,33 +47,37 @@ struct PackingItem: Identifiable, Codable, Equatable {
                lhs.name == rhs.name &&
                lhs.isPacked == rhs.isPacked &&
                lhs.isShared == rhs.isShared &&
-               lhs.userId == rhs.userId &&
+               lhs.createdByUserId == rhs.createdByUserId &&
+               lhs.assignedToUserId == rhs.assignedToUserId &&
                lhs.quantity == rhs.quantity &&
                lhs.note == rhs.note
     }
 
     init(from entity: PackingItemEntity) {
-            self.id = Int(entity.id)
-            self.name = entity.name ?? ""
-            self.isPacked = entity.isPacked
-            self.isShared = entity.isShared
-            self.userId = entity.userId != nil ? Int(entity.userId!.intValue) : nil // Handle optional userId
-            self.quantity = Int(entity.quantity)
-            self.note = entity.note
-        }
+        self.id = Int(entity.id)
+        self.name = entity.name ?? ""
+        self.isPacked = entity.isPacked
+        self.isShared = entity.isShared
+        self.createdByUserId = Int(entity.createdByUserId)
+        let assignedId = Int(entity.assignedToUserId)
+        self.assignedToUserId = assignedId != 0 ? assignedId : nil // Chuyển 0 thành nil
+        self.quantity = Int(entity.quantity)
+        self.note = entity.note
+    }
 
-        func toEntity(context: NSManagedObjectContext, tripId: Int) -> PackingItemEntity {
-            let entity = PackingItemEntity(context: context)
-            entity.id = Int32(id) // Supports negative IDs for temporary items
-            entity.tripId = Int32(tripId)
-            entity.name = name
-            entity.quantity = Int32(quantity)
-            entity.isPacked = isPacked
-            entity.isShared = isShared
-            entity.userId = userId.map { Int32($0) as NSNumber } // Handle optional userId
-            entity.note = note
-            return entity
-        }
+    func toEntity(context: NSManagedObjectContext, tripId: Int) -> PackingItemEntity {
+        let entity = PackingItemEntity(context: context)
+        entity.id = Int32(id)
+        entity.tripId = Int32(tripId)
+        entity.name = name
+        entity.quantity = Int32(quantity)
+        entity.isPacked = isPacked
+        entity.isShared = isShared
+        entity.createdByUserId = Int32(createdByUserId)
+        entity.assignedToUserId = Int32(assignedToUserId ?? 0) // Chuyển nil thành 0
+        entity.note = note
+        return entity
+    }
 }
 
 
@@ -87,17 +91,25 @@ struct PendingItem: Codable {
 
 struct PackingListResponse: Codable {
     let success: Bool
-    let data: PackingListData
-}
+    let message: String
+    let statusCode: Int
+    let reasonStatusCode: String
+    let data: [PackingItemResponse]
 
-struct PackingListData: Codable {
-    let tripItems: [PackingItemResponse]
+    enum CodingKeys: String, CodingKey {
+        case success
+        case message
+        case statusCode = "statusCode"
+        case reasonStatusCode = "reasonStatusCode"
+        case data
+    }
 }
 
 struct PackingItemResponse: Codable {
     let id: Int
     let tripId: Int
-    let userId: Int?
+    let createdByUserId: Int
+    let assignedToUserId: Int?
     let name: String
     let quantity: Int
     let isShared: Bool
@@ -105,11 +117,16 @@ struct PackingItemResponse: Codable {
     let note: String?
     let createdAt: String
     let updatedAt: String
+    let createdByUser: UserInformation?
+    let assignedToUser: UserInformation?
 
     enum CodingKeys: String, CodingKey {
         case id, name, quantity, note, createdAt, updatedAt
         case tripId = "trip_id"
-        case userId = "user_id"
+        case createdByUserId = "created_by_user_id"
+        case assignedToUserId = "assigned_to_user_id"
+        case createdByUser = "created_by_user"
+        case assignedToUser = "assigned_to_user"
         case isShared = "is_shared"
         case isPacked = "is_packed"
     }
@@ -120,13 +137,13 @@ struct CreatePackingItemRequest: Codable {
     let quantity: Int
     let isShared: Bool
     let isPacked: Bool
-    let userId: Int?
+    let assignedToUserId: Int?
 
     enum CodingKeys: String, CodingKey {
         case name, quantity
         case isShared = "is_shared"
         case isPacked = "is_packed"
-        case userId = "user_id"
+        case assignedToUserId = "assigned_to_user_id"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -135,10 +152,10 @@ struct CreatePackingItemRequest: Codable {
         try container.encode(quantity, forKey: .quantity)
         try container.encode(isShared, forKey: .isShared)
         try container.encode(isPacked, forKey: .isPacked)
-        if userId == nil {
-            try container.encodeNil(forKey: .userId)
+        if assignedToUserId == nil {
+            try container.encodeNil(forKey: .assignedToUserId)
         } else {
-            try container.encode(userId, forKey: .userId)
+            try container.encode(assignedToUserId, forKey: .assignedToUserId)
         }
     }
 }
@@ -150,11 +167,18 @@ struct CreatePackingItemResponse: Codable {
 
 struct UpdatePackingItemResponse: Codable {
     let success: Bool
-    let data: UpdatePackingItemData
-}
+    let message: String
+    let statusCode: Int
+    let reasonStatusCode: String
+    let data: PackingItemResponse
 
-struct UpdatePackingItemData: Codable {
-    let updatedItem: PackingItemResponse
+    enum CodingKeys: String, CodingKey {
+        case success
+        case message
+        case statusCode = "statusCode"
+        case reasonStatusCode = "reasonStatusCode"
+        case data
+    }
 }
 
 struct UpdatePackingItemRequest: Codable {
@@ -162,13 +186,13 @@ struct UpdatePackingItemRequest: Codable {
     let quantity: Int
     let isShared: Bool
     let isPacked: Bool
-    let userId: Int?
+    let assignedToUserId: Int?
 
     enum CodingKeys: String, CodingKey {
         case name, quantity
         case isShared = "is_shared"
         case isPacked = "is_packed"
-        case userId = "user_id"
+        case assignedToUserId = "assigned_to_user_id"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -177,10 +201,10 @@ struct UpdatePackingItemRequest: Codable {
         try container.encode(quantity, forKey: .quantity)
         try container.encode(isShared, forKey: .isShared)
         try container.encode(isPacked, forKey: .isPacked)
-        if userId == nil {
-            try container.encodeNil(forKey: .userId)
+        if assignedToUserId == nil {
+            try container.encodeNil(forKey: .assignedToUserId)
         } else {
-            try container.encode(userId, forKey: .userId)
+            try container.encode(assignedToUserId, forKey: .assignedToUserId)
         }
     }
 }

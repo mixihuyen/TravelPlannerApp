@@ -34,13 +34,13 @@ struct AssignModal: View {
                             userId: nil
                         )
 
-                        ForEach(viewModel.participants, id: \.user.id) { participant in
-                            let initials = viewModel.initials(for: participant.user)
+                        ForEach(viewModel.participants, id: \.userInformation.id) { participant in
+                            let initials = viewModel.initials(for: participant.userInformation)
                             assignOption(
-                                title: "\(participant.user.firstName ?? "") \(participant.user.lastName ?? "")",
-                                subtitle:"@\(participant.user.username ?? "Unknown" ) ",
+                                title: "\(participant.userInformation.firstName ?? "") \(participant.userInformation.lastName ?? "")",
+                                subtitle:"@\(participant.userInformation.username ?? "Unknown" ) ",
                                 initials: initials,
-                                userId: participant.user.id
+                                userId: participant.userInformation.id
                             )
                         }
                     }
@@ -50,7 +50,7 @@ struct AssignModal: View {
                 Spacer(minLength: 0)
             }
             .onAppear {
-                selectedUserId = item?.userId
+                selectedUserId = item?.assignedToUserId
                 hasSaved = false
                 print("👤 AssignModal appeared for item: \(item?.name ?? "unknown"), current userId=\(String(describing: selectedUserId))")
             }

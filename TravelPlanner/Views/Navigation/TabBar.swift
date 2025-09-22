@@ -1,17 +1,22 @@
 import SwiftUI
 
 struct TabBar: View {
-    var trip: TripModel
+    let tripId: Int
     @Environment(\.dismiss) var dismiss
     @State private var showBottomSheet = false
     @EnvironmentObject var viewModel: TripViewModel
     @EnvironmentObject var navManager: NavigationManager
     @StateObject private var tripDetailViewModel: TripDetailViewModel
+    private let networkManager: NetworkManager
     
+    private var trip: TripModel? {
+        viewModel.trips.first { $0.id == tripId }
+    }
     
-    init(trip: TripModel) {
-        self.trip = trip
-        self._tripDetailViewModel = StateObject(wrappedValue: TripDetailViewModel(trip: trip))
+    init(tripId: Int, networkManager: NetworkManager = NetworkManager()) {
+        self.tripId = tripId
+        self.networkManager = networkManager
+        self._tripDetailViewModel = StateObject(wrappedValue: TripDetailViewModel(tripId: tripId, networkManager: networkManager))
         
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
@@ -26,98 +31,103 @@ struct TabBar: View {
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
         
-        print("📋 Trip ID trong TabBar: \(trip.id)")
+        print("📋 Khởi tạo TabBar với tripId: \(tripId)")
     }
     
     var body: some View {
-        ZStack(alignment: .topTrailing)  {
-            
-            TabView {
-                TripDetailView(tripId: trip.id)
-                    .tabItem {
-                        Label("Lịch trình", systemImage: "calendar")
-                    }
-                
-                MembersView(trip: trip)
-                    .tabItem {
-                        Label("Thành viên", systemImage: "person.2.fill")
-                    }
-                
-                PackingListView(
-                    viewModel: PackingListViewModel(tripId: trip.id)
-                )
-                .tabItem {
-                    Label("Mang theo", systemImage: "duffle.bag.fill")
-                }
-                
-                StatisticalView(tripId: trip.id)
-                    .tabItem {
-                        Label("Chi tiêu", systemImage: "dollarsign.circle.fill")
-                    }
-            }
-            .environmentObject(tripDetailViewModel)
-            .onAppear {
-                            print("📋 TripDetailViewModel được inject trong TabBar: \(tripDetailViewModel)")
+        ZStack(alignment: .topTrailing) {
+            if let trip = trip, tripId > 0 {
+                TabView {
+                    TripDetailView(tripId: tripId)
+                        .tabItem {
+                            Label("Lịch trình", systemImage: "calendar")
                         }
-            
-            HStack(spacing: 5) {
-                Button(action: {
-                    let currentUserId = UserDefaults.standard.integer(forKey: "userId")
-                    let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+                        .environmentObject(tripDetailViewModel)
                     
-                    if userRole == "owner" {
-                        showBottomSheet = true
+                    MembersView(tripId: tripId)
+                        .tabItem {
+                            Label("Thành viên", systemImage: "person.2.fill")
+                        }
+                    
+                    PackingListView(viewModel: PackingListViewModel(tripId: tripId))
+                        .tabItem {
+                            Label("Mang theo", systemImage: "duffle.bag.fill")
+                        }
+                    
+                    StatisticalView(tripId: tripId)
+                        .tabItem {
+                            Label("Chi tiêu", systemImage: "dollarsign.circle.fill")
+                        }
+                }
+                .onAppear {
+                    print("📋 TabBar xuất hiện với tripId: \(tripId)")
+                }
+                
+                HStack(spacing: 5) {
+                    Button(action: {
+                        let currentUserId = UserDefaults.standard.integer(forKey: "userId")
+                        let userRole = trip.tripParticipants?.first(where: { $0.userId == currentUserId })?.role ?? "Unknown"
+                        
+                        if userRole.lowercased() == "owner" {
+                            showBottomSheet = true
+                        } else {
+                            tripDetailViewModel.showToast(message: "Chỉ có owner mới có thể chỉnh sửa chuyến đi", type: .error)
+                        }
+                    }) {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .bold))
+                            .frame(width: 40, height: 40)
+                            .foregroundColor(.white)
+                            .padding(.leading, 5)
                     }
-                }) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .bold))
-                        .frame(width: 40, height: 40)
-                        .foregroundColor(.white)
-                        .padding(.leading, 5)
+                    
+                    Rectangle()
+                        .frame(width: 1, height: 24)
+                        .foregroundColor(.gray.opacity(0.3))
+                    
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .frame(width: 40, height: 40)
+                            .foregroundColor(.white)
+                            .padding(.trailing, 5)
+                    }
                 }
-                
-                Rectangle()
-                    .frame(width: 1, height: 24)
-                    .foregroundColor(.gray.opacity(0.3))
-                
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .frame(width: 40, height: 40)
-                        .foregroundColor(.white)
-                        .padding(.trailing, 5)
+                .background(Color.gray.opacity(0.2))
+                .clipShape(Capsule())
+                .padding(.horizontal)
+            } else {
+                ZStack{
+                    Color.background
+                        .ignoresSafeArea()
+                    LottieView(animationName: "loading2")
+                        .frame(width: 100, height: 100)
+                        .padding(.top, 150)
                 }
+                    
             }
-            .background(Color.gray.opacity(0.2))
-            .clipShape(Capsule())
-            .padding(.horizontal)
-            
         }
         .navigationBarBackButtonHidden(true)
         .sheet(isPresented: $showBottomSheet) {
             DeleteTripBottomSheet(
                 onDelete: {
-                    viewModel.deleteTrip(id: trip.id) { success in
+                    viewModel.deleteTrip(id: tripId) { success in
                         if success {
                             withAnimation {
                                 showBottomSheet = false
-                                
                             }
-                            DispatchQueue.main.asyncAfter(deadline: .now()) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                                 viewModel.toastMessage = "Xoá chuyến đi thành công!"
                                 viewModel.showToast = true
-                                dismiss()
-                                DispatchQueue.main.asyncAfter(deadline: .now()) {
-                                    navManager.goToRoot()
-                                }
+                                    navManager.goBack()
                             }
                         } else {
                             withAnimation {
                                 showBottomSheet = false
                             }
-                            print("❌ Không xoá được")
+                            tripDetailViewModel.showToast(message: "Không thể xóa chuyến đi", type: .error)
                         }
                     }
                 },
@@ -126,7 +136,7 @@ struct TabBar: View {
                         showBottomSheet = false
                     }
                 },
-                isOffline: viewModel.isOffline
+                isOffline: !NetworkManager.isConnected()
             )
             .presentationDetents([.height(300)])
             .presentationBackground(.clear)
@@ -135,16 +145,10 @@ struct TabBar: View {
             .environmentObject(navManager)
         }
         .onAppear {
-                    // Kiểm tra thêm khi view xuất hiện
-                    print("📋 Trip ID khi TabBar xuất hiện: \(trip.id)")
-                    if trip.id <= 0 {
-                        print("⚠️ Cảnh báo: trip.id không hợp lệ (\(trip.id))")
-                    }
-                }
-        
-        
-        
-        
+            if tripId <= 0 {
+                print("⚠️ Cảnh báo: tripId không hợp lệ (\(tripId))")
+                tripDetailViewModel.showToast(message: "Chuyến đi không hợp lệ", type: .error)
+            }
+        }
     }
 }
-

@@ -1,10 +1,12 @@
 import Foundation
 import Combine
 import Network
+import CoreImage.CIFilterBuiltins
+import UIKit
 
 class ParticipantViewModel: ObservableObject {
     @Published var participants: [Participant] = []
-    @Published var searchResults: [User] = []
+    @Published var searchResults: [UserInformation] = []
     @Published var toastMessage: String? = nil
     @Published var showToast: Bool = false
     @Published var isLoading: Bool = false
@@ -14,7 +16,7 @@ class ParticipantViewModel: ObservableObject {
     private let networkManager: NetworkManager
     private let cacheKeyPrefix = "participants_"
     private let cacheTTL: TimeInterval = 300 // 5 phút
-    private static var ramCache: [Int: (participants: [Participant], timestamp: Date)] = [:]
+    static var ramCache: [Int: (participants: [Participant], timestamp: Date)] = [:]
     private let networkMonitor = NWPathMonitor()
     private var isOnline: Bool = true
     
@@ -29,6 +31,24 @@ class ParticipantViewModel: ObservableObject {
     init(networkManager: NetworkManager = NetworkManager()) {
         self.networkManager = networkManager
         setupNetworkMonitoring()
+        NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleLogout),
+                name: .didLogout,
+                object: nil
+            )
+    }
+    @objc private func handleLogout() {
+        clearCacheOnLogout()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: .didLogout, object: nil)
+    }
+    func clearCacheOnLogout() {
+        participants = []
+        searchResults = []
+        print("🗑️ Đã xóa cache của ParticipantViewModel")
     }
     
     // MARK: - Network Monitoring
@@ -42,17 +62,79 @@ class ParticipantViewModel: ObservableObject {
         networkMonitor.start(queue: .global())
     }
     
-    // MARK: - Pull to Refresh
-    func pullToRefresh(tripId: Int, completion: (() -> Void)? = nil) {
-        fetchParticipants(tripId: tripId, forceRefresh: true, completion: completion)
-    }
+    // MARK: - QR Code Generation
+        func generateQRCode(for tripId: Int) -> UIImage {
+            let deepLink = "myapp://trip/join?tripId=\(tripId)"
+            let filter = CIFilter.qrCodeGenerator()
+            filter.message = Data(deepLink.utf8)
+            
+            if let outputImage = filter.outputImage {
+                let context = CIContext()
+                if let cgImage = context.createCGImage(outputImage, from: outputImage.extent) {
+                    return UIImage(cgImage: cgImage)
+                }
+            }
+            return UIImage(systemName: "qrcode") ?? UIImage()
+        }
+        
+        // MARK: - Deep Link Generation
+        func copyDeepLink(tripId: Int) {
+            let deepLink = "myapp://trip/join?tripId=\(tripId)"
+            UIPasteboard.general.string = deepLink
+            print("📋 Copied deep link: \(deepLink)")
+        }
+        
+        // MARK: - Join Trip
+        func joinTrip(tripId: Int, completionHandler: (() -> Void)? = nil) {
+            guard let token = token, !token.isEmpty,
+                  let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants/join") else {
+                print("❌ Invalid token or URL for joining trip")
+                showToast(message: "Thông tin không hợp lệ", type: .error)
+                completionHandler?()
+                return
+            }
+
+            let request = NetworkManager.createRequest(url: url, method: "POST", token: token)
+            isLoading = true
+            networkManager.performRequest(request, decodeTo: ParticipantResponse.self)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] completion in
+                    self?.isLoading = false
+                    switch completion {
+                    case .failure(let error):
+                        print("❌ Error joining trip: \(error.localizedDescription)")
+                        let errorMessage = (error as? URLError)?.code == .userAuthenticationRequired
+                            ? "Bạn không có quyền tham gia chuyến đi"
+                            : "Lỗi khi tham gia chuyến đi: \(error.localizedDescription)"
+                        self?.showToast(message: errorMessage, type: .error)
+                        completionHandler?()
+                    case .finished:
+                        print("✅ Successfully completed join trip request")
+                    }
+                } receiveValue: { [weak self] response in
+                    guard let self else {
+                        print("❌ Self deallocated during joinTrip")
+                        completionHandler?()
+                        return
+                    }
+                    if response.success, response.data != nil {
+                        self.showToast(message: response.message ?? "Tham gia chuyến đi thành công!", type: .success)
+                        self.fetchParticipants(tripId: tripId, forceRefresh: true, completion: completionHandler)
+                    } else {
+                        print("❌ Failed to join trip: \(response.message ?? "Unknown error")")
+                        self.showToast(message: response.message ?? "Lỗi khi tham gia chuyến đi", type: .error)
+                        completionHandler?()
+                    }
+                }
+                .store(in: &cancellables)
+        }
     
     // MARK: - Fetch Participants
     func fetchParticipants(tripId: Int, forceRefresh: Bool = false, completion: (() -> Void)? = nil) {
         // Ưu tiên RAM cache nếu không yêu cầu làm mới
         if !forceRefresh, let (cachedParticipants, timestamp) = Self.ramCache[tripId], isCacheValid(timestamp: timestamp) {
             participants = cachedParticipants
-            completion?()
+            completion?() 
             print("📂 Loaded from RAM cache")
             // Fetch API ngầm nếu online
             if isOnline {
@@ -84,47 +166,47 @@ class ParticipantViewModel: ObservableObject {
     }
     
     private func fetchFromAPI(tripId: Int, completion: (() -> Void)? = nil) {
-            guard let token,
-                  let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants") else {
-                showToast(message: "Invalid token or URL", type: .error)
+        guard let token,
+              let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants") else {
+            showToast(message: "Invalid token or URL", type: .error)
+            completion?()
+            return
+        }
+        
+        let request = NetworkManager.createRequest(url: url, method: "GET", token: token)
+        isLoading = true
+        networkManager.performRequest(request, decodeTo: ParticipantsResponse.self)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] completionResult in
+                self?.isLoading = false
+                self?.handleCompletion(completionResult)
                 completion?()
-                return
-            }
-            
-            let request = NetworkManager.createRequest(url: url, method: "GET", token: token)
-            isLoading = true
-            networkManager.performRequest(request, decodeTo: ParticipantResponse.self)
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] completionResult in
-                    self?.isLoading = false
-                    self?.handleCompletion(completionResult)
-                    completion?()
-                } receiveValue: { [weak self] response in
-                    guard response.success, let newParticipants = response.data?.participants else {
-                        self?.showToast(message: response.message ?? "Failed to load participants", type: .error)
+            } receiveValue: { [weak self] response in
+                guard response.success, let newParticipants = response.data else {
+                    self?.showToast(message: response.message ?? "Failed to load participants", type: .error)
+                    return
+                }
+                // So sánh dữ liệu mới với RAM cache
+                if let (currentParticipants, _) = Self.ramCache[tripId] {
+                    let areEqual = currentParticipants.count == newParticipants.count &&
+                        currentParticipants.enumerated().allSatisfy { (index, participant) in
+                            let newParticipant = newParticipants[index]
+                            return participant.id == newParticipant.id &&
+                                   participant.updatedAt == newParticipant.updatedAt &&
+                                   participant.userInformation.id == newParticipant.userInformation.id &&
+                                   participant.userInformation.username == newParticipant.userInformation.username
+                        }
+                    if areEqual {
+                        print("✅ Dữ liệu API giống RAM cache, không cập nhật UI")
                         return
                     }
-                    // So sánh dữ liệu mới với RAM cache
-                    if let (currentParticipants, _) = Self.ramCache[tripId] {
-                        let areEqual = currentParticipants.count == newParticipants.count &&
-                            currentParticipants.enumerated().allSatisfy { (index, participant) in
-                                let newParticipant = newParticipants[index]
-                                return participant.id == newParticipant.id &&
-                                       participant.updatedAt == newParticipant.updatedAt &&
-                                       participant.user.id == newParticipant.user.id &&
-                                       participant.user.username == newParticipant.user.username
-                            }
-                        if areEqual {
-                            print("✅ Dữ liệu API giống RAM cache, không cập nhật UI")
-                            return
-                        }
-                    }
-                    self?.updateParticipants(with: newParticipants)
-                    self?.participants.forEach { print("👤 Participant ID: \($0.id) - User: \($0.user.username ?? "N/A")") }
-                    self?.saveToCache(participants: self?.participants ?? [], tripId: tripId)
                 }
-                .store(in: &cancellables)
-        }
+                self?.updateParticipants(with: newParticipants)
+                self?.participants.forEach { print("👤 Participant ID: \($0.id) - User: \($0.userInformation.username ?? "N/A")") }
+                self?.saveToCache(participants: self?.participants ?? [], tripId: tripId)
+            }
+            .store(in: &cancellables)
+    }
     
     // MARK: - Search Users
     func searchUsers(query: String) {
@@ -150,8 +232,8 @@ class ParticipantViewModel: ObservableObject {
     // MARK: - Add Participant
     func addParticipant(tripId: Int, userId: Int, completionHandler: @escaping () -> Void) {
         guard let token, !token.isEmpty,
-              let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants") else {
-            showToast(message: "Invalid token or URL", type: ToastType.error)
+              let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants/addMember") else {
+            showToast(message: "Invalid token or URL", type: .error)
             return
         }
 
@@ -162,22 +244,26 @@ class ParticipantViewModel: ObservableObject {
         }
 
         let request = NetworkManager.createRequest(url: url, method: "POST", token: token, body: jsonData)
-        networkManager.performRequest(request, decodeTo: AddParticipantResponse.self)
+        isLoading = true
+        networkManager.performRequest(request, decodeTo: ParticipantResponse.self)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] completion in
+                self?.isLoading = false
                 self?.handleCompletion(completion)
             } receiveValue: { [weak self] response in
-                guard response.success, response.data?.tripParticipant != nil else {
+                guard response.success, response.data != nil else {
                     self?.showToast(message: response.message?.contains("already") ?? false
-                        ? "User already in trip"
-                                    : response.message ?? "Failed to add participant", type: .error)
+                        ? "Người dùng đã có trong chuyến đi"
+                        : response.message ?? "Thêm thành viên thất bại", type: .error)
                     return
                 }
+                self?.showToast(message: response.message ?? "Thêm thành viên thành công!", type: .success)
                 self?.fetchParticipants(tripId: tripId, forceRefresh: true, completion: completionHandler)
             }
             .store(in: &cancellables)
     }
     
-    func addMultipleParticipants(tripId: Int, users: [User], completionHandler: @escaping (Int) -> Void) {
+    func addMultipleParticipants(tripId: Int, users: [UserInformation], completionHandler: @escaping (Int) -> Void) {
         var successCount = 0
         let group = DispatchGroup()
         
@@ -199,39 +285,32 @@ class ParticipantViewModel: ObservableObject {
         guard let token = token, !token.isEmpty,
               let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants/\(tripParticipantId)") else {
             print("❌ Invalid token or URL")
-            showToast(message: "Thông tin không hợp lệ", type: ToastType.error)
+            showToast(message: "Thông tin không hợp lệ", type: .error)
             completionHandler?()
             return
         }
-
+        
         let request = NetworkManager.createRequest(url: url, method: "DELETE", token: token)
         isLoading = true
-        networkManager.performRequest(request, decodeTo: BaseResponse.self)
+        networkManager.performRequest(request, decodeTo: EmptyResponse.self)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] completion in
                 self?.isLoading = false
                 switch completion {
                 case .failure(let error):
                     print("❌ Error removing participant: \(error.localizedDescription)")
                     let errorMessage = (error as? URLError)?.code == .userAuthenticationRequired
-                        ? "Bạn không có quyền xóa thành viên này"
-                        : "Lỗi khi xóa thành viên: \(error.localizedDescription)"
-                    self?.showToast(message: errorMessage, type: ToastType.error)
+                    ? "Bạn không có quyền xóa thành viên này"
+                    : "Lỗi khi xóa thành viên: \(error.localizedDescription)"
+                    self?.showToast(message: errorMessage, type: .error)
                     completionHandler?()
                 case .finished:
-                    print("✅ Request completed")
-                }
-            } receiveValue: { [weak self] response in
-                guard let self else {
-                    print("❌ Self deallocated during removeParticipant")
-                    completionHandler?()
-                    return
-                }
-                if response.success {
-                    if let participant = self.participants.first(where: { $0.id == tripParticipantId }) {
-                        let userId = participant.user.id
-                        self.participants.removeAll { $0.id == tripParticipantId }
-                        self.saveToCache(participants: self.participants, tripId: tripId)
-                        self.showToast(message: response.message ?? "Đã xóa thành viên thành công!", type: ToastType.success)
+                    print("✅ Successfully removed participant")
+                    if let participant = self?.participants.first(where: { $0.id == tripParticipantId }) {
+                        let userId = participant.userInformation.id
+                        self?.participants.removeAll { $0.id == tripParticipantId }
+                        self?.saveToCache(participants: self?.participants ?? [], tripId: tripId)
+                        self?.showToast(message: "Đã xóa thành viên thành công!", type: .success)
                         
                         packingListViewModel?.unassignItemsForUser(userId: userId) {
                             UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
@@ -242,14 +321,12 @@ class ParticipantViewModel: ObservableObject {
                         }
                     } else {
                         print("⚠️ Participant with tripParticipantId=\(tripParticipantId) not found")
-                        self.showToast(message: "Không tìm thấy thành viên để xóa", type: ToastType.error)
+                        self?.showToast(message: "Không tìm thấy thành viên để xóa", type: .error)
                         completionHandler?()
                     }
-                } else {
-                    print("❌ Failed to remove participant: \(response.message ?? "Unknown error")")
-                    self.showToast(message: response.message ?? "Lỗi khi xóa thành viên", type: ToastType.error)
-                    completionHandler?()
                 }
+            } receiveValue: { _ in
+                // Không cần xử lý giá trị trả về vì EmptyResponse không chứa dữ liệu
             }
             .store(in: &cancellables)
     }
@@ -258,7 +335,7 @@ class ParticipantViewModel: ObservableObject {
     func leaveTrip(tripId: Int, packingListViewModel: PackingListViewModel? = nil, completionHandler: (() -> Void)? = nil) {
         guard let token = token, !token.isEmpty,
               let userId = currentUserId,
-              let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants") else {
+              let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants/leave") else {
             print("❌ Invalid token or URL")
             showToast(message: "Không thể rời nhóm: Thông tin không hợp lệ", type: .error)
             completionHandler?()
@@ -268,6 +345,7 @@ class ParticipantViewModel: ObservableObject {
         let request = NetworkManager.createRequest(url: url, method: "DELETE", token: token)
         isLoading = true
         networkManager.performRequest(request, decodeTo: BaseResponse.self)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] completion in
                 self?.isLoading = false
                 switch completion {
@@ -276,7 +354,7 @@ class ParticipantViewModel: ObservableObject {
                     let errorMessage = (error as? URLError)?.code == .userAuthenticationRequired
                         ? "Bạn không có quyền rời nhóm"
                         : "Lỗi khi rời nhóm: \(error.localizedDescription)"
-                    self?.showToast(message: errorMessage, type: ToastType.error)
+                    self?.showToast(message: errorMessage, type: .error)
                     completionHandler?()
                 case .finished:
                     print("✅ Successfully completed request")
@@ -288,15 +366,16 @@ class ParticipantViewModel: ObservableObject {
                     return
                 }
                 if response.success {
-                    self.participants.removeAll { $0.user.id == userId }
+                    self.participants.removeAll { $0.userInformation.id == userId }
                     self.saveToCache(participants: self.participants, tripId: tripId)
-                    self.showToast(message: response.message ?? "Đã rời nhóm thành công!", type: ToastType.success)
+                    self.showToast(message: response.message ?? "Đã rời nhóm thành công!", type: .success)
                     
                     packingListViewModel?.unassignItemsForUser(userId: userId) {
                         UserDefaults.standard.removeObject(forKey: "packing_list_cache_\(tripId)")
                         packingListViewModel?.fetchPackingList {
                             print("✅ Refreshed packing list after leaving trip")
                             completionHandler?()
+                            NotificationCenter.default.post(name: .didLeaveTrip, object: nil, userInfo: ["tripId": tripId])
                         }
                     }
                 } else {
@@ -307,6 +386,70 @@ class ParticipantViewModel: ObservableObject {
             }
             .store(in: &cancellables)
     }
+    
+    // MARK: - Edit Participant Role
+        func editParticipantRole(tripId: Int, participantId: Int, newRole: String, completionHandler: (() -> Void)? = nil) {
+            guard let token = token, !token.isEmpty,
+                  let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/participants/\(participantId)") else {
+                print("❌ Invalid token or URL for editing role")
+                showToast(message: "Thông tin không hợp lệ", type: .error)
+                completionHandler?()
+                return
+            }
+
+            let body = ["role": newRole]
+            guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
+                print("❌ Failed to encode role data")
+                showToast(message: "Lỗi khi chuẩn bị dữ liệu", type: .error)
+                completionHandler?()
+                return
+            }
+
+            let request = NetworkManager.createRequest(url: url, method: "PATCH", token: token, body: jsonData)
+            isLoading = true
+            networkManager.performRequest(request, decodeTo: ParticipantResponse.self)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] completion in
+                    self?.isLoading = false
+                    switch completion {
+                    case .failure(let error):
+                        print("❌ Error editing participant role: \(error.localizedDescription)")
+                        let errorMessage = (error as? URLError)?.code == .userAuthenticationRequired
+                            ? "Bạn không có quyền chỉnh sửa vai trò"
+                            : "Lỗi khi chỉnh sửa vai trò: \(error.localizedDescription)"
+                        self?.showToast(message: errorMessage, type: .error)
+                        completionHandler?()
+                    case .finished:
+                        print("✅ Successfully completed role edit request")
+                    }
+                } receiveValue: { [weak self] response in
+                    guard let self else {
+                        print("❌ Self deallocated during editParticipantRole")
+                        completionHandler?()
+                        return
+                    }
+                    if response.success, let updatedParticipant = response.data {
+                        // Cập nhật participant trong danh sách
+                        if let index = self.participants.firstIndex(where: { $0.id == participantId }) {
+                            var updated = self.participants[index]
+                            updated.role = updatedParticipant.role
+                            updated.updatedAt = updatedParticipant.updatedAt
+                            self.participants[index] = updated
+                            self.saveToCache(participants: self.participants, tripId: tripId)
+                            print("✅ Updated participant role to \(newRole) for participant ID: \(participantId)")
+                            self.showToast(message: response.message ?? "Cập nhật vai trò thành công!", type: .success)
+                        } else {
+                            print("⚠️ Participant with ID \(participantId) not found")
+                            self.showToast(message: "Không tìm thấy thành viên để cập nhật", type: .error)
+                        }
+                    } else {
+                        print("❌ Failed to edit role: \(response.message ?? "Unknown error")")
+                        self.showToast(message: response.message ?? "Lỗi khi cập nhật vai trò", type: .error)
+                    }
+                    completionHandler?()
+                }
+                .store(in: &cancellables)
+        }
     
     // MARK: - Refresh Participants
     func refreshParticipants(tripId: Int, completion: (() -> Void)? = nil) {
@@ -393,17 +536,20 @@ class ParticipantViewModel: ObservableObject {
     }
     
     func showToast(message: String, type: ToastType) {
-            print("📢 Đặt toast: \(message) với type: \(type)")
-            DispatchQueue.main.async {
-                self.toastMessage = message
-                self.toastType = type
-                self.showToast = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-                    print("📢 Ẩn toast")
-                    self.showToast = false
-                    self.toastMessage = nil
-                    self.toastType = nil
-                }
+        print("📢 Đặt toast: \(message) với type: \(type)")
+        DispatchQueue.main.async {
+            self.toastMessage = message
+            self.toastType = type
+            self.showToast = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                print("📢 Ẩn toast")
+                self.showToast = false
+                self.toastMessage = nil
+                self.toastType = nil
             }
         }
+    }
+}
+extension Notification.Name {
+    static let didLeaveTrip = Notification.Name("didLeaveTrip")
 }

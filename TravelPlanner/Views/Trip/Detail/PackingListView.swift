@@ -17,7 +17,7 @@ struct PackingListView: View {
     }
     
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack {
             Color.background
                 .ignoresSafeArea()
             
@@ -49,7 +49,7 @@ struct PackingListView: View {
                             },
                             onAssign: {
                                 selectedItem = item
-                                selectedAssignee = item.userId
+                                selectedAssignee = item.assignedToUserId 
                                 showAssignModal = true
                                 hasSavedAssignee = false
                             }
@@ -73,6 +73,10 @@ struct PackingListView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
             }
+            .frame(
+                maxWidth: size == .regular ? 600 : .infinity,
+                alignment: .center
+            )
             .padding(.horizontal)
             .alert("Thêm vật dụng mới", isPresented: Binding(
                 get: { showEditNameAlert && selectedItem == nil },
@@ -88,19 +92,21 @@ struct PackingListView: View {
                         name: newItemName,
                         quantity: 1,
                         isShared: selectedTab == .shared,
-                        isPacked: false
+                        isPacked: false,
+                        assignedToUserId: nil
                     ) {
                         viewModel.showToast(message: "Đã thêm vật dụng: \(newItemName)", type: .success)
                         print("✅ Created new item: \(newItemName)")
                     }
                     newItemName = ""
                 }
+                .disabled(newItemName.isEmpty)
             } message: {
                 Text("Nhập tên vật dụng mới")
             }
             .alert("Chỉnh sửa tên vật dụng", isPresented: Binding(
                 get: { showEditNameAlert && selectedItem != nil },
-                set: { if !$0 { showEditNameAlert = false } }
+                set: { if !$0 { showEditNameAlert = false; selectedItem = nil } }
             )) {
                 TextField("Tên vật dụng", text: $newItemName)
                 Button("Hủy", role: .cancel) {
@@ -115,17 +121,21 @@ struct PackingListView: View {
                     selectedItem = nil
                     newItemName = ""
                 }
+                .disabled(newItemName.isEmpty)
             } message: {
                 Text("Nhập tên mới cho vật dụng")
             }
-            .sheet(isPresented: $showAssignModal) {
+            .sheet(isPresented: Binding(
+                get: { showAssignModal && selectedItem != nil },
+                set: { if !$0 { showAssignModal = false; selectedAssignee = nil; hasSavedAssignee = false } }
+            )) {
                 AssignModal(
                     viewModel: viewModel,
                     item: selectedItem,
                     selectedUserId: $selectedAssignee,
                     onSave: {
                         if hasSavedAssignee {
-                            print("🚫 onSave already called for item: \(selectedItem?.name ?? "unknown"), userId=\(String(describing: selectedAssignee))")
+                            print("🚫 onSave already called for item: \(selectedItem?.name ?? "unknown"), assignedToUserId=\(String(describing: selectedAssignee))")
                             return
                         }
                         if let item = selectedItem {
@@ -136,7 +146,7 @@ struct PackingListView: View {
                                 quantity: item.quantity,
                                 isShared: item.isShared,
                                 isPacked: item.isPacked,
-                                userId: selectedAssignee
+                                assignedToUserId: selectedAssignee
                             ) {
                                 viewModel.showToast(message: "Đã phân công vật dụng: \(item.name)", type: .success)
                                 print("✅ Assigned item \(item.name) to user \(String(describing: selectedAssignee))")
@@ -183,7 +193,7 @@ struct PackingListView: View {
             quantity: item.quantity,
             isShared: item.isShared,
             isPacked: item.isPacked,
-            userId: item.userId
+            assignedToUserId: item.assignedToUserId
         ) {
             viewModel.showToast(message: "Đã cập nhật vật dụng: \(newItemName)", type: .success)
             print("✅ Updated item name: \(newItemName)")

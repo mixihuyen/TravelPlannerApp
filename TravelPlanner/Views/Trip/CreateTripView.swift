@@ -1,42 +1,60 @@
 import SwiftUI
-import Cloudinary
 import PhotosUI
+import Photos
 
 struct CreateTripView: View {
+    @Environment(\.horizontalSizeClass) var size
     @EnvironmentObject private var viewModel: TripViewModel
     @EnvironmentObject var navManager: NavigationManager
     
-    @StateObject private var cloudinaryManager = CloudinaryManager()
+    @StateObject private var imageViewModel = ImageViewModel()
     @State private var newTripName: String = ""
     @State private var newTripDescription: String = ""
     @State private var newTripAddress: String = ""
     @State private var newTripStartDate = Date()
     @State private var newTripEndDate = Date()
-    
     @State private var showLocationSearch: Bool = false
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
-    @State private var selectedImage: UIImage? // Lưu ảnh được chọn
-    @State private var selectedPhotoItem: PhotosPickerItem? // Cho PhotosPicker
-    @State private var isUploading: Bool = false // Trạng thái upload
-    @State private var imageCoverUrl: String? // Lưu URL ảnh bìa
-    @State private var imageCoverData: Data? // Lưu dữ liệu ảnh
+    @State private var selectedImage: UIImage?
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var imageCoverData: Data?
+    @State private var coverImageId: Int?
     @State private var isPublic: Bool = false
+    @State private var photoPermissionStatus: PHAuthorizationStatus = .notDetermined
+    @State private var isTripCreated: Bool = false
     
+
     var body: some View {
-        ScrollView {
-            VStack{
-                headerView
-                formView
+        ZStack{
+            Color.background
+                .ignoresSafeArea()
+            ScrollView {
+                VStack {
+                    headerView
+                    formView
+                }
+                
+                .alert(isPresented: $showAlert) {
+                    Alert(title: Text("Lỗi"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+                }
+                
             }
-            .alert(isPresented: $showAlert) {
-                Alert(title: Text("Lỗi"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-            }
+            .frame(
+                maxWidth: size == .regular ? 600 : .infinity,
+                alignment: .center
+            )
         }
-        .background(Color.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        
+        .onReceive(imageViewModel.$showToast) { show in
+            if show, let message = imageViewModel.toastMessage, let type = imageViewModel.toastType {
+                viewModel.showToast(message: message, type: type)
+            }
+        }
+        .onAppear {
+            checkPhotoPermission()
+        }
     }
     
     private var headerView: some View {
@@ -88,20 +106,63 @@ struct CreateTripView: View {
                                 .font(.system(size: 30, weight: .bold))
                                 .foregroundColor(Color.pink)
                         }
-                        if isUploading {
+                        if imageViewModel.isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle())
                                 .scaleEffect(1.5)
                         }
                     }
                 }
+                .disabled(photoPermissionStatus != .authorized || isTripCreated) // Vô hiệu hóa sau khi tạo chuyến đi
                 .padding(.bottom)
                 .onChange(of: selectedPhotoItem) { newItem in
+                    guard !isTripCreated else {
+                        print("🚫 Bỏ qua onChange vì chuyến đi đã được tạo")
+                        return
+                    }
                     Task {
+                        print("📸 Bắt đầu xử lý selectedPhotoItem: \(String(describing: newItem))")
                         if let data = try? await newItem?.loadTransferable(type: Data.self),
                            let uiImage = UIImage(data: data) {
                             selectedImage = uiImage
-                            uploadImageToCloudinary()
+                            imageCoverData = data
+                            print("📸 Load ảnh thành công, kích thước: \(data.count) bytes")
+                            imageViewModel.uploadImage(data) { result in
+                                switch result {
+                                case .success(let imageInfo):
+                                    coverImageId = imageInfo.id
+                                    print("📸 Ảnh được tải lên thành công, ID: \(imageInfo.id)")
+                                    viewModel.showToast(message: "Ảnh bìa được tải lên thành công!", type: .success)
+                                case .failure(let error):
+                                    print("❌ Lỗi tải ảnh lên: \(error.localizedDescription)")
+                                    showAlert = true
+                                    alertMessage = "Không thể tải ảnh lên: \(error.localizedDescription)"
+                                    coverImageId = nil
+                                    imageCoverData = nil
+                                    selectedImage = nil
+                                    selectedPhotoItem = nil
+                                }
+                            }
+                        } else {
+                            print("❌ Không thể load dữ liệu ảnh từ PhotosPickerItem")
+                            showAlert = true
+                            alertMessage = "Không thể tải ảnh được chọn. Vui lòng kiểm tra quyền truy cập thư viện ảnh hoặc thử ảnh khác."
+                            coverImageId = nil
+                            imageCoverData = nil
+                            selectedImage = nil
+                            selectedPhotoItem = nil
+                        }
+                    }
+                }
+                
+                if photoPermissionStatus != .authorized {
+                    Text("Vui lòng cấp quyền truy cập thư viện ảnh để chọn ảnh bìa")
+                        .font(.system(size: 14))
+                        .foregroundColor(.red)
+                        .padding(.bottom)
+                    Button("Mở Cài đặt") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
                         }
                     }
                 }
@@ -134,7 +195,6 @@ struct CreateTripView: View {
                 .sheet(isPresented: $showLocationSearch) {
                     LocationSearchView(
                         initialLocation: newTripAddress.isEmpty ? "Đà Lạt" : newTripAddress,
-                        date: newTripStartDate,
                         selectedLocation: $newTripAddress
                     )
                     .presentationDetents([.medium, .large])
@@ -178,34 +238,8 @@ struct CreateTripView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(isUploading)
+        .disabled(imageViewModel.isLoading)
         .padding(.horizontal)
-    }
-    
-    // MARK: - Logic
-    
-    private func uploadImageToCloudinary() {
-        guard let image = selectedImage else {
-            isUploading = false
-            showAlert = true
-            alertMessage = "Không có ảnh được chọn"
-            return
-        }
-        isUploading = true
-        cloudinaryManager.uploadImageCover(image: image) { result in
-            DispatchQueue.main.async {
-                isUploading = false
-                switch result {
-                case .success(let (url, _, data)):
-                    self.imageCoverUrl = url
-                    self.imageCoverData = data
-                    print("📸 Uploaded image, URL: \(url), imageData size: \(data.count) bytes")
-                case .failure(let error):
-                    self.showAlert = true
-                    self.alertMessage = "Lỗi khi upload ảnh: \(error.localizedDescription)"
-                }
-            }
-        }
     }
     
     private func addTrip() {
@@ -220,8 +254,16 @@ struct CreateTripView: View {
             showAlert = true
             return
         }
+        
         guard newTripEndDate >= newTripStartDate else {
             alertMessage = "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu"
+            showAlert = true
+            return
+        }
+        
+        // Chỉ kiểm tra coverImageId nếu đã chọn ảnh và upload chưa thành công
+        if selectedPhotoItem != nil && coverImageId == nil && !imageViewModel.isLoading {
+            alertMessage = "Ảnh bìa chưa được tải lên thành công. Vui lòng chờ hoặc thử lại."
             showAlert = true
             return
         }
@@ -229,21 +271,24 @@ struct CreateTripView: View {
         let start = Formatter.apiDateFormatter.string(from: newTripStartDate)
         let end = Formatter.apiDateFormatter.string(from: newTripEndDate)
         
+        print("🚀 Bắt đầu tạo chuyến đi với coverImageId: \(String(describing: coverImageId)), imageCoverData: \(imageCoverData?.count ?? 0) bytes")
+        
         viewModel.addTrip(
             name: newTripName,
-            description: newTripDescription.isEmpty ? nil : newTripDescription,
+            description: newTripDescription.isEmpty ? "" : newTripDescription,
             startDate: start,
             endDate: end,
             address: newTripAddress,
-            imageCoverUrl: imageCoverUrl,
+            coverImage: coverImageId,
             imageCoverData: imageCoverData,
             isPublic: isPublic
         )
         
+        isTripCreated = true // Đánh dấu chuyến đi đã được tạo
         resetForm()
         
         DispatchQueue.main.asyncAfter(deadline: .now()) {
-            navManager.goToRoot()
+            navManager.goBack()
         }
     }
     
@@ -255,8 +300,27 @@ struct CreateTripView: View {
         newTripEndDate = Date()
         selectedImage = nil
         selectedPhotoItem = nil
-        imageCoverUrl = nil
         imageCoverData = nil
+        coverImageId = nil
         isPublic = false
+        print("🗑️ Form đã được reset")
+    }
+    
+    private func checkPhotoPermission() {
+        photoPermissionStatus = PHPhotoLibrary.authorizationStatus()
+        if photoPermissionStatus == .notDetermined {
+            PHPhotoLibrary.requestAuthorization { status in
+                DispatchQueue.main.async {
+                    self.photoPermissionStatus = status
+                    if status != .authorized {
+                        self.showAlert = true
+                        self.alertMessage = "Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh bìa. Vui lòng cấp quyền trong Cài đặt."
+                    }
+                }
+            }
+        } else if photoPermissionStatus != .authorized {
+            showAlert = true
+            alertMessage = "Ứng dụng cần quyền truy cập thư viện ảnh để chọn ảnh bìa. Vui lòng cấp quyền trong Cài đặt."
+        }
     }
 }

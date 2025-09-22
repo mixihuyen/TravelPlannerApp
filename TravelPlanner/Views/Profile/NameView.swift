@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct NameView: View {
     @State private var firstname: String = ""
@@ -6,9 +7,14 @@ struct NameView: View {
     @State private var isLoading: Bool = false
     @State private var alertMessage: String? = nil
     @State private var showAlert: Bool = false
+    @State private var cancellables = Set<AnyCancellable>()
+    @EnvironmentObject var authManager: AuthManager
 
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
     @EnvironmentObject var navManager: NavigationManager
+    
+    // Tạo instance của AuthService
+    private let authService = AuthService()
 
     var body: some View {
         ZStack {
@@ -28,7 +34,6 @@ struct NameView: View {
                     .foregroundColor(.white)
 
                 CustomTextField(placeholder: "Họ", text: $firstname, autocapitalization: .words)
-
                 CustomTextField(placeholder: "Tên", text: $lastname, autocapitalization: .words)
 
                 Button(action: {
@@ -40,15 +45,31 @@ struct NameView: View {
                     }
 
                     isLoading = true
-                    AuthService.updateUserProfile(firstName: firstname, lastName: lastname, username: nil) { success, message in
-                        if success {
-                            navManager.go(to: .usernameView)
-                        } else {
-                            alertMessage = message
-                            showAlert = true
+                    
+                    // Sử dụng instance authService để gọi updateUserProfile
+                    authService.updateUserProfile(firstName: firstname, lastName: lastname, username: nil)
+                        .receive(on: DispatchQueue.main)
+                        .sink { completion in
+                            isLoading = false
+                            switch completion {
+                            case .failure(let error):
+                                alertMessage = error.localizedDescription
+                                showAlert = true
+                            case .finished:
+                                break
+                            }
+                        } receiveValue: { response in
+                            if response.success && (200...299).contains(response.statusCode) {
+                                UserDefaults.standard.set(firstname, forKey: "firstName")
+                                UserDefaults.standard.set(lastname, forKey: "lastName")
+                                authManager.currentUserName = [firstname, lastname].joined(separator: " ").trimmingCharacters(in: .whitespaces)
+                                navManager.go(to: .usernameView)
+                            } else {
+                                alertMessage = response.message
+                                showAlert = true
+                            }
                         }
-                    }
-
+                        .store(in: &cancellables)
                 }) {
                     if isLoading {
                         ProgressView()
@@ -69,12 +90,7 @@ struct NameView: View {
         }
         .navigationBarBackButtonHidden(true)
         .alert(isPresented: $showAlert) {
-            Alert(title: Text("Lỗi"), message: Text(alertMessage ?? ""), dismissButton: .default(Text("OK")))
+            Alert(title: Text("Lỗi"), message: Text(alertMessage ?? "Đã xảy ra lỗi không xác định"), dismissButton: .default(Text("OK")))
         }
     }
-}
-
-#Preview {
-    NameView()
-        .environmentObject(NavigationManager())
 }

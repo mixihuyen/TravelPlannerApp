@@ -2,55 +2,61 @@ import SwiftUI
 
 struct AddActivityView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.horizontalSizeClass) var size
     @EnvironmentObject var navManager: NavigationManager
-    let selectedDate: Date
-    let trip: TripModel
+    @EnvironmentObject var activityViewModel: ActivityViewModel // Sử dụng ActivityViewModel từ environment
+    let tripId: Int
     let tripDayId: Int
-    @EnvironmentObject var viewModel: TripDetailViewModel
     @State private var activityName: String = ""
     @State private var address: String = ""
     @State private var startTime: Date
     @State private var endTime: Date
     @State private var estimatedCost: Double = 0.0
-    @State private var actualCost: Double = 0.0
+    @State private var actualCost: Double? = nil
     @State private var note: String = ""
     @State private var isSubmitting: Bool = false
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
     
-    init(selectedDate: Date, trip: TripModel, tripDayId: Int) {
-        self.selectedDate = selectedDate
-        self.trip = trip
+    init(tripId: Int, tripDayId: Int) {
+        self.tripId = tripId
         self.tripDayId = tripDayId
         let calendar = Calendar.current
-        let dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
-        let startHourMinute = calendar.dateComponents([.hour, .minute], from: Date())
-        let endHourMinute = calendar.dateComponents([.hour, .minute], from: Date().addingTimeInterval(3600))
+        let now = Date()
+        let startHourMinute = calendar.dateComponents([.hour, .minute], from: now)
+        let endHourMinute = calendar.dateComponents([.hour, .minute], from: now.addingTimeInterval(3600))
         
         self._startTime = State(initialValue: calendar.date(from: {
-            var components = dateComponents
+            var components = calendar.dateComponents([.year, .month, .day], from: now)
             components.hour = startHourMinute.hour
             components.minute = startHourMinute.minute
             return components
-        }()) ?? selectedDate)
+        }()) ?? now)
         
         self._endTime = State(initialValue: calendar.date(from: {
-            var components = dateComponents
+            var components = calendar.dateComponents([.year, .month, .day], from: now)
             components.hour = endHourMinute.hour
             components.minute = endHourMinute.minute
             return components
-        }()) ?? selectedDate.addingTimeInterval(3600))
+        }()) ?? now.addingTimeInterval(3600))
     }
     
     var body: some View {
-        ScrollView {
-            VStack {
-                headerView
-                formView
-                Spacer()
+        ZStack {
+            Color.background
+                .edgesIgnoringSafeArea(.all)
+            ScrollView {
+                VStack {
+                    headerView
+                    formView
+                    Spacer()
+                }
+                .frame(
+                    maxWidth: size == .regular ? 600 : .infinity,
+                    alignment: .center
+                )
             }
         }
-        .background(Color.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert(isPresented: $showAlert) {
@@ -156,7 +162,12 @@ struct AddActivityView: View {
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                     HStack {
-                        CustomNumberTextField(value: $actualCost)
+                        CustomNumberTextField(value: Binding(
+                            get: { actualCost ?? 0 },
+                            set: { newValue in
+                                actualCost = newValue == 0 ? nil : newValue
+                            }
+                        ))
                         Text("đ")
                             .font(.system(size: 16))
                             .foregroundColor(.white)
@@ -203,7 +214,7 @@ struct AddActivityView: View {
                 .background(Color.Button)
                 .cornerRadius(25)
         }
-        .disabled(isSubmitting )
+        .disabled(isSubmitting)
         .padding(.horizontal)
     }
     
@@ -226,10 +237,15 @@ struct AddActivityView: View {
             return
         }
         
-        guard estimatedCost >= 0, actualCost >= 0 else {
-            alertMessage = "Chi phí không được âm"
+        guard estimatedCost >= 0 else {
+            alertMessage = "Chi phí dự kiến không được âm"
             showAlert = true
-            
+            return
+        }
+        
+        if let actualCostValue = actualCost, actualCostValue < 0 {
+            alertMessage = "Chi phí thực tế không được âm"
+            showAlert = true
             return
         }
         
@@ -247,27 +263,26 @@ struct AddActivityView: View {
             note: note,
             createdAt: "",
             updatedAt: "",
-            images: []
+            activityImages: []
         )
         
-        viewModel.addActivity(trip: trip, date: selectedDate, activity: newActivity) { result in
+        activityViewModel.addActivity(tripDayId: tripDayId, activity: newActivity) { result in
             DispatchQueue.main.async {
                 isSubmitting = false
                 switch result {
                 case .success(let addedActivity):
-                    viewModel.showToast(message: "Đã thêm hoạt động: \(addedActivity.activity)", type: .success)
-                    // Reset form
                     activityName = ""
                     address = ""
                     estimatedCost = 0.0
-                    actualCost = 0.0
+                    actualCost = nil
                     note = ""
+                    activityViewModel.showToast(message: "Đã thêm hoạt động: \(addedActivity.activity)", type: .success)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.navManager.goBack()
                     }
                 case .failure(let error):
                     print("❌ Lỗi khi thêm hoạt động: \(error.localizedDescription)")
-                    viewModel.showToast(message: "Lỗi khi thêm hoạt động: \(error.localizedDescription)", type: .error)
+                    activityViewModel.showToast(message: "Lỗi khi thêm hoạt động: \(error.localizedDescription)", type: .error)
                 }
             }
         }

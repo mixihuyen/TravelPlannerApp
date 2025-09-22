@@ -2,19 +2,27 @@ import SwiftUI
 
 struct TripDetailView: View {
     let tripId: Int
-    @EnvironmentObject var viewModel: TripDetailViewModel
-    @EnvironmentObject var tripViewModel: TripViewModel
-    @EnvironmentObject var navManager: NavigationManager
+    @EnvironmentObject var viewModel: TripViewModel // Lấy TripModel
+    @EnvironmentObject var tripDetailViewModel: TripDetailViewModel // Lấy TripDay
+    @EnvironmentObject var navManager: NavigationManager // Điều hướng
+    @Environment(\.horizontalSizeClass) var size // Kích thước giao diện
+    @StateObject private var activityViewModel: ActivityViewModel
+    
     
     private var trip: TripModel? {
-        tripViewModel.trips.first { $0.id == tripId }
+        viewModel.trips.first { $0.id == tripId }
     }
+    
+    init(tripId: Int) {
+            self.tripId = tripId
+            self._activityViewModel = StateObject(wrappedValue: ActivityViewModel(tripId: tripId))
+        }
     
     var body: some View {
         ZStack {
             Color.background
                 .ignoresSafeArea()
-            if let trip = trip {
+            if let trip = trip, tripId > 0 {
                 ScrollView {
                     VStack {
                         ZStack(alignment: .bottom) {
@@ -48,7 +56,7 @@ struct TripDetailView: View {
                                 .fill(Color.retangleBackground)
                                 .frame(height: 200)
                                 .ignoresSafeArea()
-                            HStack (alignment : .bottom){
+                            HStack(alignment: .bottom) {
                                 Image("detail")
                                     .resizable()
                                     .frame(width: 93, height: 101)
@@ -58,100 +66,101 @@ struct TripDetailView: View {
                                         .bold()
                                         .foregroundColor(.white)
                                     
-                                    HStack{
+                                    HStack {
                                         Text("\(Formatter.formatDate1(trip.startDate)) → \(Formatter.formatDate1(trip.endDate))")
                                             .foregroundColor(.white)
                                             .font(.system(size: 12))
                                         Image(systemName: trip.isPublic ? "globe.europe.africa.fill" : "lock.fill")
-                                            .foregroundColor(Color.white)
+                                            .foregroundColor(.white)
                                             .font(.system(size: 12))
                                     }
                                 }
                                 Spacer()
                                 Button(action: {
-                                    navManager.path.append(Route.editTrip(trip: trip)) // Điều hướng đến EditTripView
+                                    navManager.path.append(Route.editTrip(trip: trip))
                                 }) {
                                     Image(systemName: "square.and.pencil.circle.fill")
                                         .foregroundColor(.white)
                                         .font(.system(size: 24))
                                 }
                             }
+                            .frame(
+                                maxWidth: size == .regular ? 600 : .infinity,
+                                alignment: .center
+                            )
                             .padding(.horizontal)
                         }
                         .padding(.bottom, 40)
                         
                         HStack {
                             VStack(spacing: 20) {
-                                if viewModel.isLoading && viewModel.tripDays.isEmpty {
+                                if tripDetailViewModel.isLoading && tripDetailViewModel.getTripDays().isEmpty {
                                     LottieView(animationName: "loading2")
                                         .frame(width: 100, height: 100)
                                         .padding(.top, 150)
-                                } else if viewModel.tripDays.isEmpty {
+                                } else if tripDetailViewModel.getTripDays().isEmpty {
                                     Text("Không có ngày nào trong chuyến đi")
                                         .foregroundColor(.white)
                                         .font(.system(size: 16))
                                         .padding(.top, 150)
                                 } else {
-                                    ForEach(viewModel.tripDays, id: \.self) { date in
+                                    ForEach(tripDetailViewModel.getTripDays(), id: \.id) { tripDay in
                                         Button {
-                                            viewModel.getTripDayId(for: date) { tripDayId in
-                                                guard let tripDayId = tripDayId else {
-                                                    viewModel.showToast(message: "Không tìm thấy ngày chuyến đi", type: .error)
-                                                    return
-                                                }
-                                                let route = Route.activity(date: date, activities: viewModel.activities(for: date), trip: trip, tripDayId: tripDayId)
-                                                navManager.path.append(route)
+                                            guard tripId > 0, tripDay.id > 0 else {
+                                                tripDetailViewModel.showToast(message: "ID chuyến đi hoặc ngày không hợp lệ", type: .error)
+                                                return
                                             }
+                                            print("📋 Navigating to ActivityView with tripId: \(tripId), tripDayId: \(tripDay.id)")
+                                            navManager.path.append(Route.activity(tripId: tripId, tripDayId: tripDay.id))
                                         } label: {
                                             TripDayWidgetView(
-                                                title: Formatter.formatDate2(date),
-                                                activities: viewModel.activities(for: date),
+                                                title: Formatter.dateOnlyFormatter.date(from: tripDay.day).map { Formatter.formatDate2($0) } ?? tripDay.day,
+                                                activities: tripDetailViewModel.getActivities(for: tripDay.id),
                                                 formatTime: Formatter.formatTime
                                             )
                                         }
                                         .buttonStyle(PlainButtonStyle())
+                                        .contentShape(Rectangle())
                                     }
-                                    .id(viewModel.refreshTrigger)
+                                    .id(tripDetailViewModel.refreshTrigger)
                                 }
                             }
                         }
+                        .frame(
+                            maxWidth: size == .regular ? 600 : .infinity,
+                            alignment: .center
+                        )
                         .padding(.horizontal)
                     }
                     .padding(.bottom, 87)
                 }
                 .ignoresSafeArea()
-                
                 .overlay(
                     Group {
-                        if viewModel.showToast, let message = viewModel.toastMessage, let type = viewModel.toastType {
+                        if tripDetailViewModel.showToast, let message = tripDetailViewModel.toastMessage, let type = tripDetailViewModel.toastType {
                             ToastView(message: message, type: type)
                         }
                     },
                     alignment: .bottom
                 )
             } else {
-                Text("Không tìm thấy chuyến đi")
+                Text("Chuyến đi không hợp lệ")
                     .foregroundColor(.white)
                     .font(.system(size: 16))
+                    .onAppear {
+                        tripDetailViewModel.showToast(message: "Chuyến đi không hợp lệ", type: .error)
+                    }
             }
         }
         .onAppear {
-            viewModel.fetchTripDays(completion: {
+            tripDetailViewModel.fetchTripDays(completion: {
                 print("📅 Đã làm mới tripDays khi TripDetailView xuất hiện")
             }, forceRefresh: false)
         }
-        .onChange(of: tripViewModel.trips) { newTrips in
-            print("🔄 Trips đã thay đổi, tìm trip ID: \(tripId)")
-            if let updatedTrip = newTrips.first(where: { $0.id == tripId }) {
-                print("🔍 Trip được tìm thấy: startDate: \(updatedTrip.startDate), endDate: \(updatedTrip.endDate)")
-            } else {
-                print("❌ Không tìm thấy trip với ID: \(tripId)")
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("TripUpdated"))) { notification in
-            if let tripId = notification.userInfo?["tripId"] as? Int, tripId == self.tripId {
+            if let updatedTripId = notification.userInfo?["tripId"] as? Int, updatedTripId == tripId {
                 print("🔄 Nhận thông báo TripUpdated cho tripId=\(tripId), làm mới tripDays")
-                viewModel.fetchTripDays(completion: {
+                tripDetailViewModel.fetchTripDays(completion: {
                     print("📅 Đã làm mới tripDays sau khi cập nhật chuyến đi")
                 }, forceRefresh: true)
             }

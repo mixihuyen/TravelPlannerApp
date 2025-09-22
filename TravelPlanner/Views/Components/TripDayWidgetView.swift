@@ -5,7 +5,7 @@ struct TripDayWidgetView: View {
     let activities: [TripActivity]
     let formatTime: (String) -> String
     
-    var body: some View {
+    var body: some View { 
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 ZStack {

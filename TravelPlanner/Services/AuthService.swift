@@ -1,27 +1,56 @@
 import Foundation
+import Combine
 
 class AuthService {
-    private static func decodeUserId(from token: String) -> Int? {
-            let components = token.split(separator: ".")
-            guard components.count == 3 else {
-                print("Invalid JWT format")
-                return nil
+    
+    
+    private let networkManager: NetworkManager
+    @Published var toastMessage: String?
+    @Published var showToast: Bool = false
+    @Published var toastType: ToastType?
+    private var cancellables = Set<AnyCancellable>()
+    
+    init(networkManager: NetworkManager = NetworkManager()) {
+        self.networkManager = networkManager
+    }
+    
+    func refreshToken() -> AnyPublisher<RefreshTokenResponse, Error> {
+            guard let refreshToken = UserDefaults.standard.string(forKey: "refreshToken") else {
+                return Fail(error: NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Không tìm thấy refresh token."])).eraseToAnyPublisher()
             }
-            let payload = String(components[1])
-            // Đảm bảo padding đúng cho base64
-            let paddedPayload = payload.padding(toLength: ((payload.count + 3) / 4) * 4, withPad: "=", startingAt: 0)
-            if let data = Data(base64Encoded: paddedPayload),
-               let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                // Thử lấy userId từ các trường phổ biến: sub, userId, id
-                return json["sub"] as? Int ?? json["userId"] as? Int ?? json["id"] as? Int
+            
+            guard let url = URL(string: "\(APIConfig.baseURL)/auth/handle-refresh-token") else {
+                return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
             }
-            print("Failed to decode JWT payload")
-            return nil
+            
+            var urlRequest = URLRequest(url: url)
+            urlRequest.httpMethod = "POST"
+            urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let body: [String: Any] = ["refreshToken": refreshToken]
+            do {
+                urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+            } catch {
+                return Fail(error: error).eraseToAnyPublisher()
+            }
+            
+            return networkManager.performRequest(urlRequest, decodeTo: RefreshTokenResponse.self)
+                .flatMap { response in
+                    Future<RefreshTokenResponse, Error> { promise in
+                        if response.success && (200...299).contains(response.statusCode) {
+                            UserDefaults.standard.set(response.data.token.accessToken, forKey: "authToken")
+                            UserDefaults.standard.set(response.data.token.refreshToken, forKey: "refreshToken")
+                            promise(.success(response))
+                        } else {
+                            promise(.failure(NSError(domain: "", code: response.statusCode, userInfo: [NSLocalizedDescriptionKey: response.message])))
+                        }
+                    }
+                }
+                .eraseToAnyPublisher()
         }
     
-    // Hàm gửi OTP
     static func sendOTPRequest(to email: String, completion: @escaping (Bool, String?) -> Void) {
-        guard let url = URL(string: "https://travel-api-79ct.onrender.com/api/v1/auth/email-send-otp") else {
+        guard let url = URL(string: "\(APIConfig.baseURL)/auth/email-send-otp") else {
             completion(false, "URL không hợp lệ.")
             return
         }
@@ -50,20 +79,15 @@ class AuthService {
                     return
                 }
                 
-                guard let httpResponse = response as? HTTPURLResponse else {
+                guard let httpResponse = response as? HTTPURLResponse, let data = data else {
                     completion(false, "Không có phản hồi từ server.")
-                    return
-                }
-                
-                guard (200...299).contains(httpResponse.statusCode), let data = data else {
-                    completion(false, "Lỗi server: \(httpResponse.statusCode)")
                     return
                 }
                 
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         let success = json["success"] as? Bool ?? false
-                        let message = json["message"] as? String
+                        let message = json["message"] as? String ?? "Phản hồi không hợp lệ từ server."
                         completion(success, success ? nil : message)
                     } else {
                         completion(false, "Phản hồi không hợp lệ.")
@@ -75,139 +99,73 @@ class AuthService {
         }.resume()
     }
     
-    // ✅ Hàm xác thực OTP
-    static func verifyOTP(email: String, code: String, completion: @escaping (_ success: Bool, _ message: String, _ token: String?, _ firstName: String?, _ lastName: String?, _ username: String?, _ userId: Int?, _ shouldGoToHome: Bool) -> Void) {
-            guard let url = URL(string: "https://travel-api-79ct.onrender.com/api/v1/auth/email-verify-otp") else {
-                completion(false, "URL xác thực OTP không hợp lệ.", nil, nil, nil, nil, nil, false)
-                return
-            }
-            
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            
-            let body: [String: Any] = [
-                "email": email,
-                "otp": code
-            ]
-            
-            do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            } catch {
-                completion(false, "Lỗi mã hóa dữ liệu OTP: \(error.localizedDescription)", nil, nil, nil, nil, nil, false)
-                return
-            }
-            
-            let config = URLSessionConfiguration.ephemeral
-            config.timeoutIntervalForRequest = 20
-            config.waitsForConnectivity = true
-            let session = URLSession(configuration: config)
-            
-            session.dataTask(with: request) { data, response, error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        completion(false, "Lỗi kết nối: \(error.localizedDescription)", nil, nil, nil, nil, nil, false)
-                        return
-                    }
-                    
-                    guard let httpResponse = response as? HTTPURLResponse else {
-                        completion(false, "Không có phản hồi từ server.", nil, nil, nil, nil, nil, false)
-                        return
-                    }
-                    
-                    guard (200...299).contains(httpResponse.statusCode), let data = data else {
-                        completion(false, "Xác thực OTP thất bại. Mã lỗi: \(httpResponse.statusCode)", nil, nil, nil, nil, nil, false)
-                        return
-                    }
-                    
-                    do {
-                        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                            print("API Response: \(json)") // Debug để kiểm tra phản hồi
-                            let success = json["success"] as? Bool ?? false
-                            let message = json["message"] as? String ?? "Không có thông báo"
-                            
-                            if let dataDict = json["data"] as? [String: Any] {
-                                let token = dataDict["token"] as? String
-                                let user = dataDict["user"] as? [String: Any]
-                                let firstName = user?["first_name"] as? String
-                                let lastName = user?["last_name"] as? String
-                                let username = user?["username"] as? String
-                                // Thử lấy userId từ user, nếu không có thì giải mã từ token
-                                let userId = (user?["id"] as? Int) ?? (token != nil ? decodeUserId(from: token!) : nil)
-                                let shouldGoToHome = (username != nil && !(username?.isEmpty ?? true))
-                                
-                                if success {
-                                    completion(true, message, token, firstName, lastName, username, userId, shouldGoToHome)
-                                    print("Token: \(token ?? "Không nhận được token"), UserID: \(userId ?? 0)")
-                                } else {
-                                    completion(false, message, nil, nil, nil, nil, nil, false)
-                                }
-                            } else {
-                                completion(false, "Phản hồi không hợp lệ từ server.", nil, nil, nil, nil, nil, false)
-                            }
-                        }
-                    } catch {
-                        completion(false, "Lỗi phân tích phản hồi: \(error.localizedDescription)", nil, nil, nil, nil, nil, false)
-                    }
-                }
-            }.resume()
+    func verifyOTP(request: [String: String]) -> AnyPublisher<VerifyOTPResponse, Error> {
+        guard let url = URL(string: "\(APIConfig.baseURL)/auth/email-verify-otp") else {
+            return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
         }
-    
-    
-    
-    static func updateUserProfile(firstName: String?, lastName: String?, username: String?, completion: @escaping (Bool, String?) -> Void) {
         
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            urlRequest.httpBody = try JSONSerialization.data(withJSONObject: request)
+        } catch {
+            return Fail(error: error).eraseToAnyPublisher()
+        }
+        
+        return networkManager.performRequest(urlRequest, decodeTo: VerifyOTPResponse.self)
+    }
+
+    func updateUserProfile(firstName: String?, lastName: String?, username: String?) -> AnyPublisher<UpdateProfileResponse, Error> {
         guard let token = UserDefaults.standard.string(forKey: "authToken") else {
-            completion(false, "Không tìm thấy token.")
-            return
+            print("❌ Không tìm thấy token xác thực trong UserDefaults")
+            return Fail(error: URLError(.userAuthenticationRequired)).eraseToAnyPublisher()
         }
-        
-        guard let url = URL(string: "https://travel-api-79ct.onrender.com/api/v1/users/me") else {
-            completion(false, "URL không hợp lệ.")
-            return
+
+        guard let url = URL(string: "\(APIConfig.baseURL)/users/me") else {
+            print("❌ URL không hợp lệ: \(APIConfig.baseURL)/users/me")
+            return Fail(error: URLError(.badURL)).eraseToAnyPublisher()
         }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         var body: [String: Any] = [:]
         if let firstName = firstName { body["first_name"] = firstName }
         if let lastName = lastName { body["last_name"] = lastName }
         if let username = username { body["username"] = username }
-        
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        } catch {
-            completion(false, "Lỗi mã hóa dữ liệu: \(error.localizedDescription)")
-            return
+
+        guard let requestBody = try? JSONSerialization.data(withJSONObject: body) else {
+            print("❌ JSON Encoding Error")
+            return Fail(error: URLError(.cannotParseResponse)).eraseToAnyPublisher()
         }
-        
-        // ✅ Sử dụng session tùy chỉnh
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 20
-        config.waitsForConnectivity = true
-        let session = URLSession(configuration: config)
-        
-        session.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    completion(false, "Lỗi kết nối: \(error.localizedDescription)")
-                    return
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    completion(false, "Không có phản hồi từ server.")
-                    return
-                }
-                
-                if (200...299).contains(httpResponse.statusCode) {
-                    completion(true, nil)
-                } else {
-                    completion(false, "Cập nhật thất bại. Mã lỗi: \(httpResponse.statusCode)")
+
+        print("📤 Request body: \(String(data: requestBody, encoding: .utf8) ?? "Không thể decode body")")
+        let request = NetworkManager.createRequest(url: url, method: "PATCH", token: token, body: requestBody)
+
+        return networkManager.performRequest(request, decodeTo: UpdateProfileResponse.self)
+            .flatMap { response in
+                Future<UpdateProfileResponse, Error> { promise in
+                    if response.success && (200...299).contains(response.statusCode) {
+                        print("✅ Cập nhật profile thành công")
+                        promise(.success(response))
+                    } else if response.statusCode == 400 {
+                        print("❌ Cập nhật profile thất bại: [\(response.statusCode)] \(response.message)")
+                        promise(.failure(NSError(domain: "", code: 400, userInfo: [NSLocalizedDescriptionKey: "Tên người dùng đã được sử dụng, vui lòng chọn tên khác!"])))
+                    } else {
+                        print("❌ Cập nhật profile thất bại: [\(response.statusCode)] \(response.message)")
+                        promise(.failure(NSError(domain: "", code: response.statusCode, userInfo: [NSLocalizedDescriptionKey: response.message.isEmpty ? "Không thể cập nhật hồ sơ, vui lòng thử lại sau!" : response.message])))
+                    }
                 }
             }
-        }.resume()
+            .catch { error -> AnyPublisher<UpdateProfileResponse, Error> in
+                if (error as? URLError)?.code == .userAuthenticationRequired {
+                    print("❌ Token không hợp lệ hoặc hết hạn từ server")
+                    return Fail(error: NSError(domain: "", code: URLError.userAuthenticationRequired.rawValue, userInfo: [NSLocalizedDescriptionKey: "Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!"])).eraseToAnyPublisher()
+                } else {
+                    print("❌ Lỗi khi cập nhật profile: \(error.localizedDescription)")
+                    return Fail(error: NSError(domain: "", code: (error as NSError).code, userInfo: [NSLocalizedDescriptionKey: "Tên người dùng đã được sử dụng, vui lòng chọn tên khác!"])).eraseToAnyPublisher()
+                }
+            }
+            .eraseToAnyPublisher()
     }
+    
 }

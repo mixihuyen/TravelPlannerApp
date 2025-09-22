@@ -1,6 +1,23 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788" systemVersion="24G84" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788" systemVersion="24G90" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="ActivityEntity" representedClassName=".ActivityEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="activity" optional="YES" attributeType="String"/>
+        <attribute name="activityImages" optional="YES" attributeType="Transformable"/>
+        <attribute name="actualCost" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="address" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" optional="YES" attributeType="String"/>
+        <attribute name="endTime" optional="YES" attributeType="String"/>
+        <attribute name="estimatedCost" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="note" optional="YES" attributeType="String"/>
+        <attribute name="startTime" optional="YES" attributeType="String"/>
+        <attribute name="tripDayId" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="tripId" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="updatedAt" optional="YES" attributeType="String"/>
+    </entity>
     <entity name="PackingItemEntity" representedClassName=".PackingItemEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="assignedToUserId" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="createdByUserId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="id" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="isPacked" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="isShared" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
@@ -8,10 +25,9 @@
         <attribute name="note" optional="YES" attributeType="String"/>
         <attribute name="quantity" attributeType="Integer 32" defaultValueString="1" usesScalarValueType="YES"/>
         <attribute name="tripId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="userId" optional="YES" attributeType="Integer 32" usesScalarValueType="NO"/>
     </entity>
     <entity name="TripDayEntity" representedClassName=".TripDayEntity" syncable="YES" codeGenerationType="class">
-        <attribute name="activitiesData" optional="YES" attributeType="Transformable"/>
+        <attribute name="activitiesData" optional="YES" attributeType="Binary"/>
         <attribute name="createdAt" optional="YES" attributeType="String"/>
         <attribute name="day" optional="YES" attributeType="String"/>
         <attribute name="id" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
@@ -20,13 +36,14 @@
     </entity>
     <entity name="TripEntity" representedClassName=".TripEntity" syncable="YES" codeGenerationType="class">
         <attribute name="address" optional="YES" attributeType="String"/>
+        <attribute name="coverImage" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="coverImageInfo" optional="YES" attributeType="Binary"/>
         <attribute name="createdAt" optional="YES" attributeType="String"/>
         <attribute name="createdByUserId" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="des" optional="YES" attributeType="String"/>
         <attribute name="endDate" optional="YES" attributeType="String"/>
         <attribute name="id" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="imageCoverData" optional="YES" attributeType="Binary"/>
-        <attribute name="imageCoverUrl" optional="YES" attributeType="String"/>
         <attribute name="isPublic" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="startDate" optional="YES" attributeType="String"/>

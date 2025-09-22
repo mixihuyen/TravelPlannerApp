@@ -31,14 +31,14 @@ struct MemberRow: View {
     }
     
     private func avatarInitials() -> String {
-        let firstInitial = member.user.firstName?.prefix(1) ?? ""
-        let lastInitial = member.user.lastName?.prefix(1) ?? ""
+        let firstInitial = member.userInformation.firstName?.prefix(1) ?? ""
+        let lastInitial = member.userInformation.lastName?.prefix(1) ?? ""
         return "\(firstInitial)\(lastInitial)"
     }
     
     private func fullName() -> String {
-        let firstName = member.user.firstName ?? ""
-        let lastName = member.user.lastName ?? ""
+        let firstName = member.userInformation.firstName ?? ""
+        let lastName = member.userInformation.lastName ?? ""
         return "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
     }
     

@@ -1,35 +1,34 @@
 import Foundation
 import CoreData
 
-struct TripModel: Identifiable, Codable, Hashable {
+struct TripModel: Codable, Identifiable, Equatable, Hashable {
     let id: Int
     let name: String
     let description: String?
     let startDate: String
     let endDate: String
     let address: String?
-    let imageCoverUrl: String?
-    var imageCoverData: Data?
     let isPublic: Bool
     let status: String
     let createdByUserId: Int
+    let coverImage: Int? // ID của ảnh
+    var coverImageInfo: ImageData?  // Thông tin chi tiết của ảnh
     let createdAt: String
     let updatedAt: String
+    var imageCoverData: Data? // Dữ liệu ảnh cục bộ (giữ nguyên để lưu cache)
     var tripParticipants: [TripParticipant]?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, description
+        case id, name, description, address, status, createdAt, updatedAt
         case startDate = "start_date"
         case endDate = "end_date"
-        case address
-        case imageCoverUrl = "image_cover_url"
-        case imageCoverData
-        case isPublic = "public"
-        case status
+        case isPublic = "is_public"
         case createdByUserId = "created_by_user_id"
-        case createdAt, updatedAt
+        case coverImage = "cover_image"
+        case coverImageInfo = "cover_image_info"
         case tripParticipants = "TripParticipants"
     }
+    
     init(
         id: Int,
         name: String,
@@ -37,7 +36,8 @@ struct TripModel: Identifiable, Codable, Hashable {
         startDate: String,
         endDate: String,
         address: String?,
-        imageCoverUrl: String?,
+        coverImage: Int?,
+        coverImageInfo: ImageData?,
         imageCoverData: Data?,
         isPublic: Bool,
         status: String,
@@ -52,7 +52,8 @@ struct TripModel: Identifiable, Codable, Hashable {
         self.startDate = startDate
         self.endDate = endDate
         self.address = address
-        self.imageCoverUrl = imageCoverUrl
+        self.coverImage = coverImage
+        self.coverImageInfo = coverImageInfo
         self.imageCoverData = imageCoverData
         self.isPublic = isPublic
         self.status = status
@@ -62,41 +63,41 @@ struct TripModel: Identifiable, Codable, Hashable {
         self.tripParticipants = tripParticipants
     }
     
-    
     static func == (lhs: TripModel, rhs: TripModel) -> Bool {
-            return lhs.id == rhs.id &&
-                   lhs.name == rhs.name &&
-                   lhs.description == rhs.description &&
-                   lhs.startDate == rhs.startDate &&
-                   lhs.endDate == rhs.endDate &&
-                   lhs.address == rhs.address &&
-                   lhs.imageCoverUrl == rhs.imageCoverUrl &&
-                   lhs.imageCoverData == rhs.imageCoverData &&
-                   lhs.isPublic == rhs.isPublic &&
-                   lhs.status == rhs.status &&
-                   lhs.createdByUserId == rhs.createdByUserId &&
-                   lhs.createdAt == rhs.createdAt &&
-                   lhs.updatedAt == rhs.updatedAt &&
-                   lhs.tripParticipants == rhs.tripParticipants
-        }
-
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(id)
-            hasher.combine(name)
-            hasher.combine(description)
-            hasher.combine(startDate)
-            hasher.combine(endDate)
-            hasher.combine(address)
-            hasher.combine(imageCoverUrl)
-            hasher.combine(imageCoverData)
-            hasher.combine(isPublic)
-            hasher.combine(status)
-            hasher.combine(createdByUserId)
-            hasher.combine(createdAt)
-            hasher.combine(updatedAt)
-            hasher.combine(tripParticipants)
-        }
+        return lhs.id == rhs.id &&
+               lhs.name == rhs.name &&
+               lhs.description == rhs.description &&
+               lhs.startDate == rhs.startDate &&
+               lhs.endDate == rhs.endDate &&
+               lhs.address == rhs.address &&
+               lhs.coverImage == rhs.coverImage &&
+               lhs.coverImageInfo == rhs.coverImageInfo &&
+               lhs.imageCoverData == rhs.imageCoverData &&
+               lhs.isPublic == rhs.isPublic &&
+               lhs.status == rhs.status &&
+               lhs.createdByUserId == rhs.createdByUserId &&
+               lhs.createdAt == rhs.createdAt &&
+               lhs.updatedAt == rhs.updatedAt &&
+               lhs.tripParticipants == rhs.tripParticipants
+    }
     
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(name)
+        hasher.combine(description)
+        hasher.combine(startDate)
+        hasher.combine(endDate)
+        hasher.combine(address)
+        hasher.combine(coverImage)
+        hasher.combine(coverImageInfo)
+        hasher.combine(imageCoverData)
+        hasher.combine(isPublic)
+        hasher.combine(status)
+        hasher.combine(createdByUserId)
+        hasher.combine(createdAt)
+        hasher.combine(updatedAt)
+        hasher.combine(tripParticipants)
+    }
     
     func toEntity(context: NSManagedObjectContext) -> TripEntity {
         let entity = TripEntity(context: context)
@@ -106,7 +107,12 @@ struct TripModel: Identifiable, Codable, Hashable {
         entity.startDate = startDate
         entity.endDate = endDate
         entity.address = address
-        entity.imageCoverUrl = imageCoverUrl
+        entity.coverImage = coverImage != nil ? Int32(coverImage!) : 0
+        if let coverImageInfo = coverImageInfo {
+            if let jsonData = try? JSONEncoder().encode(coverImageInfo) {
+                entity.coverImageInfo = jsonData
+            }
+        }
         entity.imageCoverData = imageCoverData
         entity.isPublic = isPublic
         entity.status = status
@@ -131,15 +137,21 @@ struct TripModel: Identifiable, Codable, Hashable {
         }
         return entity
     }
-
+    
     init(from entity: TripEntity) {
         self.id = Int(entity.id)
         self.name = entity.name ?? ""
-        self.description = entity.des ?? ""
+        self.description = entity.des
         self.startDate = entity.startDate ?? ""
         self.endDate = entity.endDate ?? ""
-        self.address = entity.address ?? ""
-        self.imageCoverUrl = entity.imageCoverUrl ?? ""
+        self.address = entity.address
+        self.coverImage = entity.coverImage != 0 ? Int(entity.coverImage) : nil
+        if let coverImageInfoData = entity.coverImageInfo,
+           let coverImageInfo = try? JSONDecoder().decode(ImageData.self, from: coverImageInfoData) {
+            self.coverImageInfo = coverImageInfo
+        } else {
+            self.coverImageInfo = nil
+        }
         self.imageCoverData = entity.imageCoverData
         self.isPublic = entity.isPublic
         self.status = entity.status ?? "planned"
@@ -167,11 +179,17 @@ struct TripModel: Identifiable, Codable, Hashable {
 
 struct TripSingleResponse: Codable {
     let success: Bool
+    let message: String
+    let statusCode: Int
+    let reasonStatusCode: String
     let data: TripModel
 }
 
 struct TripListResponse: Codable {
     let success: Bool
+    let message: String
+    let statusCode: Int
+    let reasonStatusCode: String
     let data: [TripModel]
 }
 
@@ -183,18 +201,14 @@ struct TripRequest: Codable {
     let startDate: String
     let endDate: String
     let address: String?
-    let imageCoverUrl: String?
+    let coverImage: Int?
     let isPublic: Bool
-    let status: String
-    let createdByUserId: Int
-
+    
     enum CodingKeys: String, CodingKey {
-        case name, description, status
+        case name, description, address
         case startDate = "start_date"
         case endDate = "end_date"
-        case address
-        case imageCoverUrl = "image_cover_url"
-        case isPublic = "public"
-        case createdByUserId = "created_by_user_id"
+        case coverImage = "cover_image"
+        case isPublic = "is_public"
     }
 }

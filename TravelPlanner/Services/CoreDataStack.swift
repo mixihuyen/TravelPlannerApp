@@ -33,4 +33,21 @@ class CoreDataStack {
             }
         }
     }
+    func deleteAllData() {
+            let context = persistentContainer.viewContext
+            let entities = persistentContainer.managedObjectModel.entities
+            for entity in entities {
+                guard let entityName = entity.name else { continue }
+                let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+                let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+                batchDeleteRequest.resultType = .resultTypeCount
+                do {
+                    let result = try context.execute(batchDeleteRequest) as? NSBatchDeleteResult
+                    print("🗑️ Đã xóa tất cả dữ liệu của entity \(entityName): \(result?.result as? Int ?? 0) bản ghi")
+                } catch {
+                    print("❌ Lỗi khi xóa dữ liệu Core Data cho entity \(entityName): \(error.localizedDescription)")
+                }
+            }
+            saveContext()
+        }
 }

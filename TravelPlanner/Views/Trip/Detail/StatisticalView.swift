@@ -6,6 +6,7 @@ struct StatisticalView: View {
     @State private var chartEntries: [PieChartDataEntry] = []
     @State private var colorMap: [TripActivity: UIColor] = [:]
     @Environment(\.dismiss) var dismiss
+    @Environment(\.horizontalSizeClass) var size
 
     init(tripId: Int) {
         self._viewModel = StateObject(wrappedValue: TripDashboardViewModel(tripId: tripId))
@@ -48,7 +49,7 @@ struct StatisticalView: View {
                                         .multilineTextAlignment(.center)
                                         .padding(.horizontal, 20)
                                     
-                                    
+                                    Spacer()
                                 }
                                 .padding(.top, 100)
                             } else {
@@ -58,7 +59,10 @@ struct StatisticalView: View {
                                 .frame(height: 300)
 
                                 VStack(alignment: .leading, spacing: 0) {
-                                    let validActivities = dashboard.activities.filter { $0.actualCost > 0 }
+                                    let validActivities = dashboard.activities.filter {
+                                        guard let actualCost = $0.actualCost else { return false }
+                                        return actualCost > 0
+                                    }
                                     
                                     ForEach(Array(validActivities.enumerated()), id: \.1.id) { index, activity in
                                         VStack(spacing: 12) {
@@ -75,7 +79,7 @@ struct StatisticalView: View {
 
                                                 Spacer()
 
-                                                Text("\(Formatter.formatCost(activity.actualCost))")
+                                                Text("\(Formatter.formatCost(activity.actualCost ?? 0.0))")
                                                     .foregroundColor(.white)
                                                     .font(.system(size: 14, weight: .bold))
                                             }
@@ -89,11 +93,10 @@ struct StatisticalView: View {
                                 }
                             }
                         }
-                        
+                        .padding(.top, 50)
+                        .padding(.horizontal)
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.top, 50)
-                    .padding(.horizontal)
-                    .frame(maxWidth: .infinity)
                 } else if viewModel.isLoading {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -147,6 +150,10 @@ struct StatisticalView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            .frame(
+                maxWidth: size == .regular ? 600 : .infinity,
+                alignment: .center
+            )
         }
         .onAppear {
             viewModel.fetchDashboard()
@@ -154,24 +161,22 @@ struct StatisticalView: View {
     }
 
     func summaryBox(title: String, value: Double) -> some View {
-            HStack(alignment: .bottom, spacing: 4) {
-                Text(title)
-                    .foregroundColor(.gray)
-                    .font(.caption)
-                Spacer()
-                Text(title == "Thu chi" ? (value > 0 ? "+\(Formatter.formatCost(value))" : value < 0 ? "−\(Formatter.formatCost(value))" : Formatter.formatCost(value)) : Formatter.formatCost(value))
-                    .foregroundColor(title == "Thu chi" ? (value > 0 ? .blue : value < 0 ? .red : .white) : .white)
-                    .font(.system(size: 20))
-                    .fontWeight(.bold)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
-            )
+        HStack(alignment: .bottom, spacing: 4) {
+            Text(title)
+                .foregroundColor(.gray)
+                .font(.caption)
+            Spacer()
+            Text(title == "Thu chi" ? Formatter.formatCost(value) : Formatter.formatCost(value))
+                .foregroundColor(title == "Thu chi" ? (value > 0 ? .blue : value < 0 ? .red : .white) : .white)
+                .font(.system(size: 20))
+                .fontWeight(.bold)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+        )
+    }
 }
-
-

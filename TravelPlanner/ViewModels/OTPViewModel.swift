@@ -13,6 +13,8 @@ class OTPViewModel: ObservableObject {
     var email: String = ""
     
     private var timer: Timer?
+    private let authService = AuthService()
+    private var cancellables = Set<AnyCancellable>()
     
     func startTimer() {
         timer?.invalidate()
@@ -68,28 +70,66 @@ class OTPViewModel: ObservableObject {
         
         
     }
+    
+    
     func verifyOTP(code: String) {
-        isLoading = true
-        AuthService.verifyOTP(email: email, code: code) { [weak self] success, message, token, firstName, lastName, username,userId, shouldGoToHome in guard let self = self else { return }
-            self.isLoading = false
+            isLoading = true
             
-            if success {
-                print("✅ OTP hợp lệ")
-                if let token = token {
-                    self.authManager?.signIn(token: token, firstName: firstName, lastName: lastName, username: username, email: self.email, userId: userId)
+            let requestBody: [String: String] = [
+                "email": email,
+                "otp": code
+            ]
+            
+            authService.verifyOTP(request: requestBody)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] completion in
+                    guard let self = self else { return }
+                    self.isLoading = false
+                    
+                    switch completion {
+                    case .failure(let error):
+                        print("❌ OTP verification failed: \(error)")
+                        if error._code == NSURLErrorNotConnectedToInternet {
+                            self.alertMessage = "Không có kết nối mạng. Vui lòng kiểm tra và thử lại."
+                        } else {
+                            self.alertMessage = error.localizedDescription
+                        }
+                    case .finished:
+                        break
+                    }
+                } receiveValue: { [weak self] response in
+                    guard let self = self else { return }
+                    
+                    if response.success {
+                        guard let data = response.data else {
+                            print("❌ No data in response")
+                            self.alertMessage = "Không nhận được dữ liệu từ server."
+                            return
+                        }
+                        
+                        print("✅ OTP verified successfully")
+                        print("🔍 AccessToken: \(data.token.accessToken)")
+                        print("🔍 RefreshToken: \(data.token.refreshToken)")
+                        
+                        // Gọi hàm signIn từ AuthManager
+                        self.authManager?.signIn(
+                            token: data.token.accessToken,
+                            refreshToken: data.token.refreshToken,
+                            firstName: data.user.firstName,
+                            lastName: data.user.lastName,
+                            username: data.user.username,
+                            email: self.email,
+                            userId: Int(data.user.id)
+                        )
+                        
+                        // Thông báo thành công
+                        self.alertMessage = response.message
+                    } else {
+                        print("❌ OTP verification failed: \(response.message)")
+                        self.alertMessage = response.message // Hiển thị message từ response
+                    }
                 }
-                
-                if shouldGoToHome {
-                    self.navManager?.go(to: .homeTabBar)
-                } else {
-                    self.navManager?.go(to: .nameView)
-                }
-            } else {
-                self.alertMessage = message
-            }
+                .store(in: &cancellables)
         }
-        
-        
-    }
     
 }

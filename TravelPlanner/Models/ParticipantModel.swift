@@ -2,44 +2,45 @@ import Foundation
 
 struct Participant: Codable, Identifiable {
     let id: Int
-    let trip_id: Int
-    let user_id: Int
-    let role: String
-    let joined_at: String
+    let tripId: Int
+    let userId: Int
+    var role: String
+    let joinedAt: String
     let createdAt: String
-    let updatedAt: String
-    let user: User
+    var updatedAt: String
+    let userInformation: UserInformation
 
     enum CodingKeys: String, CodingKey {
-        case id, trip_id, user_id, role, joined_at, createdAt, updatedAt
-        case user = "User" 
+        case id
+        case tripId = "trip_id"
+        case userId = "user_id"
+        case role
+        case joinedAt = "joined_at"
+        case createdAt
+        case updatedAt
+        case userInformation = "user_information"
     }
+}
+
+struct ParticipantsResponse: Codable {
+    let success: Bool
+    let message: String?
+    let statusCode: Int
+    let reasonStatusCode: String
+    let data: [Participant]?
+}
+struct UserSearchResponse: Codable {
+    let success: Bool
+    let message: String?
+    let data: [UserInformation]?
 }
 
 struct ParticipantResponse: Codable {
     let success: Bool
     let message: String?
-    let data: ParticipantData?
-    
-    
-    struct ParticipantData: Codable {
-        let participants: [Participant]
-    }
-}
-struct UserSearchResponse: Codable {
-    let success: Bool
-    let message: String?
-    let data: [User]?
-}
-
-struct AddParticipantResponse: Codable {
-    let success: Bool
-    let message: String?
-    let data: AddParticipantData?
-}
-
-struct AddParticipantData: Codable {
-    let tripParticipant: TripParticipant
+    let statusCode: Int
+    let reasonStatusCode: String
+    let data: TripParticipant?
 }
 struct BaseResponse: Decodable {
     let success: Bool
