@@ -7,16 +7,17 @@ struct TabBar: View {
     @EnvironmentObject var viewModel: TripViewModel
     @EnvironmentObject var navManager: NavigationManager
     @StateObject private var tripDetailViewModel: TripDetailViewModel
-    private let networkManager: NetworkManager
+    private let networkManager = NetworkManager.shared
+    @State private var localTrip: TripModel?
+
     
     private var trip: TripModel? {
         viewModel.trips.first { $0.id == tripId }
     }
     
-    init(tripId: Int, networkManager: NetworkManager = NetworkManager()) {
+    init(tripId: Int) {
         self.tripId = tripId
-        self.networkManager = networkManager
-        self._tripDetailViewModel = StateObject(wrappedValue: TripDetailViewModel(tripId: tripId, networkManager: networkManager))
+        self._tripDetailViewModel = StateObject(wrappedValue: TripDetailViewModel(tripId: tripId))
         
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
@@ -36,7 +37,7 @@ struct TabBar: View {
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            if let trip = trip, tripId > 0 {
+            if let trip = localTrip{
                 TabView {
                     TripDetailView(tripId: tripId)
                         .tabItem {
@@ -99,16 +100,15 @@ struct TabBar: View {
                 .clipShape(Capsule())
                 .padding(.horizontal)
             } else {
-                ZStack{
-                    Color.background
-                        .ignoresSafeArea()
-                    LottieView(animationName: "loading2")
-                        .frame(width: 100, height: 100)
-                        .padding(.top, 150)
+                ZStack {
+                    Color.pink.opacity(0.4)                             .ignoresSafeArea()
+                     LottieView(animationName: "loading2")
+                         .frame(width: 50, height: 50)
                 }
                     
             }
         }
+        
         .navigationBarBackButtonHidden(true)
         .sheet(isPresented: $showBottomSheet) {
             DeleteTripBottomSheet(
@@ -145,10 +145,11 @@ struct TabBar: View {
             .environmentObject(navManager)
         }
         .onAppear {
-            if tripId <= 0 {
-                print("⚠️ Cảnh báo: tripId không hợp lệ (\(tripId))")
-                tripDetailViewModel.showToast(message: "Chuyến đi không hợp lệ", type: .error)
+            if localTrip == nil { // chỉ gán lần đầu
+                localTrip = viewModel.trips.first { $0.id == tripId }
             }
+            print("📋 TabBar xuất hiện với tripId: \(tripId)")
         }
+
     }
 }

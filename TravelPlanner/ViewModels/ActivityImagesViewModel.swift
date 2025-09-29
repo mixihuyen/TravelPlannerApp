@@ -10,7 +10,7 @@ class ActivityImagesViewModel: ObservableObject {
         @Published var showToast: Bool = false
         @Published var toastType: ToastType?
         private var cancellables = Set<AnyCancellable>()
-        private let networkManager = NetworkManager()
+    private let networkManager = NetworkManager.shared
         private let imageViewModel = ImageViewModel()
     
     func fetchImages(tripId: Int, tripDayId: Int, activityId: Int, completion: (() -> Void)? = nil) {

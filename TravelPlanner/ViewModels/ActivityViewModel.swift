@@ -13,7 +13,7 @@ class ActivityViewModel: ObservableObject {
     @Published var toastType: ToastType?
     @Published var refreshTrigger: UUID = UUID()
     private var cancellables = Set<AnyCancellable>()
-    private let networkManager = NetworkManager()
+    private let networkManager = NetworkManager.shared
     private let coreDataStack = CoreDataStack.shared
 
     init(tripId: Int) {
@@ -298,34 +298,53 @@ class ActivityViewModel: ObservableObject {
             return
         }
 
-        let existingImageIds = activity.activityImages?.map { $0.id } ?? []
-        let updatedImageIds = Array(Set(existingImageIds + imageIds))
-        print("📸 Existing image IDs: \(existingImageIds)")
-        print("📸 New image IDs: \(imageIds)")
-        print("📸 Combined image IDs: \(updatedImageIds)")
-
-        let body: [String: Any] = [
-            "activity_images": updatedImageIds
-        ]
-
-        print("📤 Sending API body for image update: \(body)")
-
-        guard let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/days/\(tripDayId)/activities/\(activity.id)"),
+        // Lấy danh sách ảnh hiện tại từ server
+        guard let imagesUrl = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(tripId)/days/\(tripDayId)/activities/\(activity.id)/images"),
               let token = UserDefaults.standard.string(forKey: "authToken") else {
-            print("❌ Invalid URL or Token")
+            print("❌ Invalid URL or Token for fetching images")
             completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL hoặc Token không hợp lệ"])))
             return
         }
 
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
-            print("❌ Error creating JSON")
-            completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Lỗi khi tạo JSON"])))
-            return
-        }
-
-        let request = NetworkManager.createRequest(url: url, method: "PATCH", token: token, body: jsonData)
+        let imagesRequest = NetworkManager.createRequest(url: imagesUrl, method: "GET", token: token)
         isLoading = true
-        networkManager.performRequest(request, decodeTo: TripActivityResponse.self)
+        networkManager.performRequest(imagesRequest, decodeTo: ActivityImagesResponse.self)
+            .flatMap { [weak self] imagesResponse -> AnyPublisher<TripActivity, Error> in
+                guard let self else {
+                    return Fail(error: NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Self deallocated"])).eraseToAnyPublisher()
+                }
+
+                // Lấy danh sách ID ảnh hiện tại từ server
+                let existingImageIds = imagesResponse.data?.map { $0.id } ?? []
+                print("📸 Existing image IDs from server: \(existingImageIds)")
+                print("📸 New image IDs: \(imageIds)")
+                let updatedImageIds = Array(Set(existingImageIds + imageIds))
+                print("📸 Combined image IDs: \(updatedImageIds)")
+
+                // Tạo body cho yêu cầu PATCH
+                let body: [String: Any] = [
+                    "activity_images": updatedImageIds
+                ]
+                print("📤 Sending API body for image update: \(body)")
+
+                guard let patchUrl = URL(string: "\(APIConfig.baseURL)\(APIConfig.tripsEndpoint)/\(self.tripId)/days/\(tripDayId)/activities/\(activity.id)"),
+                      let patchToken = UserDefaults.standard.string(forKey: "authToken"),
+                      let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
+                    print("❌ Invalid URL or Token for PATCH")
+                    return Fail(error: NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL hoặc Token không hợp lệ"])).eraseToAnyPublisher()
+                }
+
+                let patchRequest = NetworkManager.createRequest(url: patchUrl, method: "PATCH", token: patchToken, body: jsonData)
+                return self.networkManager.performRequest(patchRequest, decodeTo: TripActivityResponse.self)
+                    .tryMap { response in  // Thay .map bằng .tryMap
+                        if response.success, let updatedActivity = response.data {
+                            return updatedActivity
+                        } else {
+                            throw NSError(domain: "", code: response.statusCode, userInfo: [NSLocalizedDescriptionKey: response.message ?? "Không nhận được dữ liệu hoạt động"])
+                        }
+                    }
+                    .eraseToAnyPublisher()
+            }
             .sink { [weak self] completionResult in
                 guard let self else { return }
                 self.isLoading = false
@@ -337,22 +356,17 @@ class ActivityViewModel: ObservableObject {
                 case .finished:
                     print("✅ Updating activity images via API completed")
                 }
-            } receiveValue: { [weak self] response in
+            } receiveValue: { [weak self] updatedActivity in
                 guard let self else { return }
-                if response.success, let updatedActivity = response.data {
-                    if let index = self.activities.firstIndex(where: { $0.id == updatedActivity.id }) {
-                        self.activities[index] = updatedActivity
-                    } else {
-                        self.activities.append(updatedActivity)
-                    }
-                    self.saveToCache(activities: self.activities)
-                    self.refreshTrigger = UUID()
-                    self.showToast(message: "Đã cập nhật ảnh cho hoạt động: \(updatedActivity.activity)", type: .success)
-                    completion(.success(updatedActivity))
+                if let index = self.activities.firstIndex(where: { $0.id == updatedActivity.id }) {
+                    self.activities[index] = updatedActivity
                 } else {
-                    self.showToast(message: "Không thể lưu ảnh hoạt động", type: .error)
-                    completion(.failure(NSError(domain: "", code: response.statusCode, userInfo: [NSLocalizedDescriptionKey: response.message ?? "Không nhận được dữ liệu hoạt động"])))
+                    self.activities.append(updatedActivity)
                 }
+                self.saveToCache(activities: self.activities)
+                self.refreshTrigger = UUID()
+                self.showToast(message: "Đã cập nhật ảnh cho hoạt động: \(updatedActivity.activity)", type: .success)
+                completion(.success(updatedActivity))
             }
             .store(in: &cancellables)
     }

@@ -37,13 +37,13 @@ struct CustomDatePicker: View {
                     .environment(\.locale, Locale(identifier: "vi_VN"))
                     .labelsHidden()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .ignoresSafeArea()
+                    .colorScheme(.dark)
                     .padding(.bottom, 40)
                     .padding(.horizontal)
                 }
                 .presentationDetents([.height(300)])
                 .presentationBackground(.clear)
-                .background(Color(.lightGray))
+                .background(Color.dark)
                 .ignoresSafeArea()
                 
             }

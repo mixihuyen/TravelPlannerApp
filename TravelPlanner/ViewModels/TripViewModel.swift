@@ -11,28 +11,41 @@ class TripViewModel: ObservableObject {
     @Published var toastType: ToastType?
     
     private var cancellables = Set<AnyCancellable>()
-    private let networkManager: NetworkManager
+    private let networkManager = NetworkManager.shared
     private var cacheTimestamp: Date?
     private var nextTempId: Int = -1
     private let coreDataStack = CoreDataStack.shared
     private let ttl: TimeInterval = 300 // 5 phút
     private let imageViewModel = ImageViewModel()
     
-    init(networkManager: NetworkManager = NetworkManager()) {
-        self.networkManager = networkManager
-        loadNextTempId()
-        if let cachedTrips = loadFromCache() {
-            self.trips = cachedTrips
-            self.cacheTimestamp = UserDefaults.standard.object(forKey: "trips_cache_timestamp") as? Date
-            print("📂 Sử dụng dữ liệu từ cache")
-        } else if !NetworkManager.isConnected() {
-            showToast(message: "Không có dữ liệu cache và không có kết nối mạng, vui lòng kết nối lại!", type: .error)
-        }
-        if NetworkManager.isConnected() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                self.fetchTrips()
-            }
-        }
+    init() {
+                loadNextTempId()
+                if let cachedTrips = loadFromCache() {
+                    self.trips = cachedTrips
+                    self.cacheTimestamp = UserDefaults.standard.object(forKey: "trips_cache_timestamp") as? Date
+                    print("📂 Sử dụng dữ liệu từ cache")
+                } else if !NetworkManager.isConnected() {
+                    showToast(message: "Không có dữ liệu cache và không có kết nối mạng, vui lòng kết nối lại!", type: .error)
+                }
+                
+                // Theo dõi trạng thái mạng
+                networkManager.$isNetworkAvailable
+                    .sink { [weak self] isConnected in
+                        guard let self else { return }
+                        print("🌐 Network status in TripViewModel: \(isConnected ? "Connected" : "Disconnected")")
+                        if isConnected {
+                            // Gọi fetchTrips khi mạng được khôi phục
+                            self.fetchTrips()
+                        }
+                    }
+                    .store(in: &cancellables)
+                
+                // Gọi fetchTrips ban đầu nếu có mạng
+                if NetworkManager.isConnected() {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                        self.fetchTrips()
+                    }
+                }
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleLeaveTrip),
@@ -261,7 +274,7 @@ class TripViewModel: ObservableObject {
             )
             
             guard let body = try? JSONEncoder().encode(tripData) else {
-                print("❌ JSON Encoding Error")
+                print("❌ Lỗi mã hóa dữ liệu TripRequest")
                 showToast(message: "Lỗi mã hóa dữ liệu", type: .error)
                 completion(false)
                 return
@@ -280,7 +293,7 @@ class TripViewModel: ObservableObject {
                     self.isLoading = false
                     switch completionResult {
                     case .failure(let error):
-                        print("❌ Lỗi khi cập nhật chuyến đi: \(error.localizedDescription)")
+                        print("❌ Lỗi khi cập nhật chuyến đi ID: \(tripId): \(error.localizedDescription)")
                         if (error as? URLError)?.code == .notConnectedToInternet {
                             self.showToast(message: "Mạng yếu, vui lòng thử lại sau!", type: .error)
                         } else {
@@ -288,16 +301,14 @@ class TripViewModel: ObservableObject {
                         }
                         completion(false)
                     case .finished:
-                        print("✅ Cập nhật chuyến đi thành công")
-                        self.fetchTrips(forceRefresh: true) {
-                            self.showToast(message: "Cập nhật chuyến đi thành công!", type: .success)
-                            completion(true)
-                            NotificationCenter.default.post(
-                                name: NSNotification.Name("TripUpdated"),
-                                object: nil,
-                                userInfo: ["tripId": tripId]
-                            )
-                        }
+                        print("✅ Cập nhật chuyến đi ID: \(tripId) thành công")
+                        self.showToast(message: "Cập nhật chuyến đi thành công!", type: .success)
+                        completion(true)
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("TripUpdated"),
+                            object: nil,
+                            userInfo: ["tripId": tripId]
+                        )
                     }
                 } receiveValue: { [weak self] response in
                     guard let self else {
@@ -305,15 +316,18 @@ class TripViewModel: ObservableObject {
                         return
                     }
                     var updatedTrip = response.data
-                    updatedTrip.imageCoverData = imageCoverData
-                    updatedTrip.coverImageInfo = coverImageInfo
-                    print("🔍 Dữ liệu từ server: startDate: \(updatedTrip.startDate), endDate: \(updatedTrip.endDate), participants: \(updatedTrip.tripParticipants?.map { "\($0.userId):\($0.role)" } ?? [])")
+                    // Giữ lại imageCoverData và coverImageInfo từ currentTrip nếu không có ảnh mới
+                    updatedTrip.imageCoverData = imageCoverData ?? currentTrip?.imageCoverData
+                    updatedTrip.coverImageInfo = coverImageInfo ?? currentTrip?.coverImageInfo
+                    updatedTrip.tripParticipants = currentTrip?.tripParticipants ?? updatedTrip.tripParticipants
+                    print("🔍 Dữ liệu từ server: ID: \(updatedTrip.id), name: \(updatedTrip.name), startDate: \(updatedTrip.startDate), endDate: \(updatedTrip.endDate), coverImage: \(updatedTrip.coverImage ?? -1), imageCoverData: \(updatedTrip.imageCoverData != nil ? "Có (\(updatedTrip.imageCoverData!.count) bytes)" : "Không"), participants: \(updatedTrip.tripParticipants?.map { "\($0.userId):\($0.role)" } ?? [])")
                     self.handleTripUpdate(updatedTrip)
                 }
                 .store(in: &cancellables)
         }
         
         if let imageData = imageCoverData {
+            // Có ảnh mới, cần xóa ảnh cũ (nếu có) và tải ảnh mới
             if let existingCoverImage = currentTrip?.coverImage {
                 imageViewModel.deleteImage(imageId: existingCoverImage) { [weak self] result in
                     guard let self else {
@@ -326,6 +340,7 @@ class TripViewModel: ObservableObject {
                         self.imageViewModel.uploadImage(imageData) { result in
                             switch result {
                             case .success(let imageInfo):
+                                print("✅ Đã tải ảnh mới ID: \(imageInfo.id)")
                                 performUpdate(coverImage: imageInfo.id, coverImageInfo: imageInfo, imageCoverData: imageData)
                             case .failure(let error):
                                 print("❌ Lỗi khi tải ảnh mới: \(error.localizedDescription)")
@@ -334,12 +349,13 @@ class TripViewModel: ObservableObject {
                             }
                         }
                     case .failure(let error):
-                        print("❌ Lỗi khi xóa ảnh cũ: \(error.localizedDescription)")
+                        print("❌ Lỗi khi xóa ảnh cũ ID: \(existingCoverImage): \(error.localizedDescription)")
                         self.showToast(message: "Lỗi khi xóa ảnh cũ", type: .error)
                         completion(false)
                     }
                 }
             } else {
+                // Không có ảnh cũ, chỉ cần tải ảnh mới
                 imageViewModel.uploadImage(imageData) { [weak self] result in
                     guard let self else {
                         completion(false)
@@ -347,6 +363,7 @@ class TripViewModel: ObservableObject {
                     }
                     switch result {
                     case .success(let imageInfo):
+                        print("✅ Đã tải ảnh mới ID: \(imageInfo.id)")
                         performUpdate(coverImage: imageInfo.id, coverImageInfo: imageInfo, imageCoverData: imageData)
                     case .failure(let error):
                         print("❌ Lỗi khi tải ảnh: \(error.localizedDescription)")
@@ -356,6 +373,7 @@ class TripViewModel: ObservableObject {
                 }
             }
         } else {
+            // Không có ảnh mới, giữ nguyên coverImage và coverImageInfo hiện tại
             performUpdate(coverImage: currentTrip?.coverImage, coverImageInfo: currentTrip?.coverImageInfo, imageCoverData: nil)
         }
     }

@@ -22,7 +22,7 @@ struct TripDetailView: View {
         ZStack {
             Color.background
                 .ignoresSafeArea()
-            if let trip = trip, tripId > 0 {
+            if let trip = trip {
                 ScrollView {
                     VStack {
                         ZStack(alignment: .bottom) {
@@ -92,18 +92,8 @@ struct TripDetailView: View {
                         }
                         .padding(.bottom, 40)
                         
-                        HStack {
                             VStack(spacing: 20) {
-                                if tripDetailViewModel.isLoading && tripDetailViewModel.getTripDays().isEmpty {
-                                    LottieView(animationName: "loading2")
-                                        .frame(width: 100, height: 100)
-                                        .padding(.top, 150)
-                                } else if tripDetailViewModel.getTripDays().isEmpty {
-                                    Text("Không có ngày nào trong chuyến đi")
-                                        .foregroundColor(.white)
-                                        .font(.system(size: 16))
-                                        .padding(.top, 150)
-                                } else {
+                                 
                                     ForEach(tripDetailViewModel.getTripDays(), id: \.id) { tripDay in
                                         Button {
                                             guard tripId > 0, tripDay.id > 0 else {
@@ -123,9 +113,8 @@ struct TripDetailView: View {
                                         .contentShape(Rectangle())
                                     }
                                     .id(tripDetailViewModel.refreshTrigger)
-                                }
+                                
                             }
-                        }
                         .frame(
                             maxWidth: size == .regular ? 600 : .infinity,
                             alignment: .center
@@ -135,6 +124,7 @@ struct TripDetailView: View {
                     .padding(.bottom, 87)
                 }
                 .ignoresSafeArea()
+                
                 .overlay(
                     Group {
                         if tripDetailViewModel.showToast, let message = tripDetailViewModel.toastMessage, let type = tripDetailViewModel.toastType {
@@ -143,13 +133,18 @@ struct TripDetailView: View {
                     },
                     alignment: .bottom
                 )
-            } else {
-                Text("Chuyến đi không hợp lệ")
+            } 
+            if tripDetailViewModel.isLoading && tripDetailViewModel.getTripDays().isEmpty {
+                VStack {
+                    LottieView(animationName: "loading2")
+                        .frame(width: 50, height: 50)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if tripDetailViewModel.getTripDays().isEmpty {
+                Text("Không có ngày nào trong chuyến đi")
                     .foregroundColor(.white)
                     .font(.system(size: 16))
-                    .onAppear {
-                        tripDetailViewModel.showToast(message: "Chuyến đi không hợp lệ", type: .error)
-                    }
+                    .padding(.top, 150)
             }
         }
         .onAppear {
@@ -167,3 +162,4 @@ struct TripDetailView: View {
         }
     }
 }
+

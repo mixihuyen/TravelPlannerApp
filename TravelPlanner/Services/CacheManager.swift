@@ -17,7 +17,7 @@ class CacheManager {
     
     // Danh sách các entity Core Data cần xóa
     private let coreDataEntities: [String] = [
-        "TripEntity", "TripDayEntity", "PackingItemEntity"
+        "TripEntity", "TripDayEntity", "PackingItemEntity", "ActivityEntity", "UserImageEntity", "AvatarEntity", "ImageEntity"
     ]
     
     private init() {}
