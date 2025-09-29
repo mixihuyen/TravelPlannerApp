@@ -22,7 +22,7 @@ class WeatherViewModel: ObservableObject {
         @Published var errorMessage: String?
         @Published var locationSuggestions: [LocationSuggestion] = []
         private var cancellables = Set<AnyCancellable>()
-        private let networkManager = NetworkManager()
+    private let networkManager = NetworkManager.shared
         public var location: String
         private let tripId: Int // Không optional
         private let tripDayId: Int // Không optional

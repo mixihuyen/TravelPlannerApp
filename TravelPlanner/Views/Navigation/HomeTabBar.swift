@@ -4,6 +4,7 @@ struct HomeTabBar: View {
     @StateObject private var navigationCoordinator = NavigationCoordinator()
     @StateObject private var participantViewModel = ParticipantViewModel() // Để gọi API join
     @StateObject private var imageViewModel = ImageViewModel()
+    @StateObject private var profileViewModel = ProfileViewModel()
     
     init() {
         let appearance = UITabBarAppearance()
@@ -38,6 +39,7 @@ struct HomeTabBar: View {
                         Label("Hồ sơ", systemImage: "face.smiling")
                     }
                     .environmentObject(imageViewModel)
+                    .environmentObject(profileViewModel)
             }
         }
         .navigationBarBackButtonHidden(true)

@@ -123,19 +123,21 @@ struct ActivityImagesView: View {
     }
     
     private var loadingView: some View {
-        LottieView(animationName: "loading2")
-            .frame(width: 100, height: 100)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding()
+        ZStack {
+            Color.black.opacity(0.0)                             .ignoresSafeArea()
+             LottieView(animationName: "loading2")
+                 .frame(width: 50, height: 50)
+        }
     }
     
     private var emptyView: some View {
         VStack(spacing: 10) {
             Spacer()
-            Image("empty")
+            Image(systemName: "photo.on.rectangle.angled")
                 .resizable()
+                .scaledToFit()
                 .frame(width: 100, height: 100)
-                .foregroundColor(.gray)
+                .foregroundColor(.gray.opacity(0.6))
             
             Text("Chưa có hình ảnh cho hoạt động này")
                 .foregroundColor(.white)

@@ -13,7 +13,7 @@ class TripDetailViewModel: ObservableObject {
     @Published var toastType: ToastType?
     @Published var tripDays: [TripDay] = []
     private var cancellables = Set<AnyCancellable>()
-    private var networkManager: NetworkManager
+    private let networkManager = NetworkManager.shared
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -23,9 +23,8 @@ class TripDetailViewModel: ObservableObject {
     private let cacheExpirationSeconds: TimeInterval = 1800 // 30 minutes
     private let coreDataStack = CoreDataStack.shared
 
-    init(tripId: Int, networkManager: NetworkManager = NetworkManager()) {
+    init(tripId: Int) {
         self.tripId = tripId
-        self.networkManager = networkManager
         print("🚀 Initializing TripDetailViewModel for tripId=\(tripId)")
         if !loadFromCache().isEmpty {
             self.tripDays = loadFromCache()

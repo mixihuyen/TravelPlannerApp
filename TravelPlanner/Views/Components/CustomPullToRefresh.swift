@@ -54,7 +54,7 @@ struct CustomPullToRefresh<Content: View>: View {
             VStack(spacing: 0) {
                 if isRefreshing {
                     LottieView(animationName: "loading2")
-                        .frame(width: 60, height: 60)
+                        .frame(width: 30, height: 30)
                         .padding(.bottom, 10)
                         .transition(.opacity.combined(with: .scale))
                 }

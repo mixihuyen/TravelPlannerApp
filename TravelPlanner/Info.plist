@@ -33,7 +33,7 @@
         <array>
             <dict>
                 <key>CFBundleURLName</key>
-                <string>com.yourcompany.app</string>
+                <string>com.mixihuyen.app</string>
                 <key>CFBundleURLSchemes</key>
                 <array>
                     <string>myapp</string>

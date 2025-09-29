@@ -11,11 +11,11 @@ struct TripModel: Codable, Identifiable, Equatable, Hashable {
     let isPublic: Bool
     let status: String
     let createdByUserId: Int
-    let coverImage: Int? // ID của ảnh
-    var coverImageInfo: ImageData?  // Thông tin chi tiết của ảnh
+    let coverImage: Int?
+    var coverImageInfo: ImageData?
     let createdAt: String
     let updatedAt: String
-    var imageCoverData: Data? // Dữ liệu ảnh cục bộ (giữ nguyên để lưu cache)
+    var imageCoverData: Data?
     var tripParticipants: [TripParticipant]?
     
     enum CodingKeys: String, CodingKey {
@@ -58,7 +58,7 @@ struct TripModel: Codable, Identifiable, Equatable, Hashable {
         self.isPublic = isPublic
         self.status = status
         self.createdByUserId = createdByUserId
-        self.createdAt = createdAt
+        self.createdAt = createdAt 
         self.updatedAt = updatedAt
         self.tripParticipants = tripParticipants
     }

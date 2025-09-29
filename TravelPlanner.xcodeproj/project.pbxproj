@@ -13,6 +13,7 @@
 		26302ADE2E476168002DAAB1 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 26302ADD2E476168002DAAB1 /* SocketIO */; };
 		2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */ = {isa = PBXBuildFile; productRef = 2649793E2E193554002A4B7B /* SwiftUICharts */; };
 		264979452E193940002A4B7B /* DGCharts in Frameworks */ = {isa = PBXBuildFile; productRef = 264979442E193940002A4B7B /* DGCharts */; };
+		266283F42E82A1AC001D9DFA /* SDWebImageSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 266283F32E82A1AC001D9DFA /* SDWebImageSwiftUI */; };
 		26A257532E51CD4B008858F5 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 26A256FF2E51CD4B008858F5 /* .gitignore */; };
 		26DB83272E27AEA100BF6F0F /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 26DB83262E27AEA100BF6F0F /* Lottie */; };
 		26DB83382E29477100BF6F0F /* WaterfallGrid in Frameworks */ = {isa = PBXBuildFile; productRef = 26DB83372E29477100BF6F0F /* WaterfallGrid */; };
@@ -81,6 +82,7 @@
 				264979452E193940002A4B7B /* DGCharts in Frameworks */,
 				26302ADE2E476168002DAAB1 /* SocketIO in Frameworks */,
 				26302ADB2E4715E6002DAAB1 /* Cache in Frameworks */,
+				266283F42E82A1AC001D9DFA /* SDWebImageSwiftUI in Frameworks */,
 				26DB83382E29477100BF6F0F /* WaterfallGrid in Frameworks */,
 				26302ACD2E45DC36002DAAB1 /* Cloudinary in Frameworks */,
 				2649793F2E193554002A4B7B /* SwiftUICharts in Frameworks */,
@@ -155,6 +157,7 @@
 				26302AD72E466AD6002DAAB1 /* Starscream */,
 				26302ADA2E4715E6002DAAB1 /* Cache */,
 				26302ADD2E476168002DAAB1 /* SocketIO */,
+				266283F32E82A1AC001D9DFA /* SDWebImageSwiftUI */,
 			);
 			productName = TravelPlanner;
 			productReference = 264978602E13B439002A4B7B /* TravelPlanner.app */;
@@ -247,6 +250,7 @@
 				26302AD62E466AD6002DAAB1 /* XCRemoteSwiftPackageReference "Starscream" */,
 				26302AD92E4715E6002DAAB1 /* XCRemoteSwiftPackageReference "Cache" */,
 				26302ADC2E476168002DAAB1 /* XCRemoteSwiftPackageReference "socket" */,
+				266283F22E82A1AC001D9DFA /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 264978612E13B439002A4B7B /* Products */;
@@ -455,9 +459,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D88T349JHV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TravelPlanner/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Travel Planner";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -486,9 +492,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D88T349JHV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TravelPlanner/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Travel Planner";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -666,6 +674,14 @@
 				minimumVersion = 5.1.0;
 			};
 		};
+		266283F22E82A1AC001D9DFA /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SDWebImage/SDWebImageSwiftUI";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.1.3;
+			};
+		};
 		26DB83252E27AEA100BF6F0F /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/airbnb/lottie-ios.git";
@@ -714,6 +730,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 264979432E193940002A4B7B /* XCRemoteSwiftPackageReference "Charts" */;
 			productName = DGCharts;
+		};
+		266283F32E82A1AC001D9DFA /* SDWebImageSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 266283F22E82A1AC001D9DFA /* XCRemoteSwiftPackageReference "SDWebImageSwiftUI" */;
+			productName = SDWebImageSwiftUI;
 		};
 		26DB83262E27AEA100BF6F0F /* Lottie */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -2,6 +2,10 @@ import SwiftUI
 
 struct SideBar: View {
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var navManager: NavigationManager
+    @EnvironmentObject var profileViewModel: ProfileViewModel
+    @State private var isShowingEditProfile: Bool = false
+    @State private var showLogoutAlert: Bool = false // Thêm state cho alert xác nhận
     let onLogout: () -> Void
 
     var body: some View {
@@ -16,39 +20,47 @@ struct SideBar: View {
                         .fill(Color.pink)
                         .frame(width: 50, height: 50)
                         .overlay(
-                            Text(authManager.avatarInitials())
+                            Text(profileViewModel.avatarInitials())
                                 .font(.system(size: 20))
                                 .foregroundColor(.white)
                         )
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(authManager.currentUserName ?? "Khách")
+                        Text(profileViewModel.userFullName())
                             .font(.title3)
                             .bold()
                             .foregroundColor(.white)
 
-                        let username = authManager.username ?? "username"
-                        Text("@\(username)" ?? "Chưa đăng nhập")
+                        Text("@\(profileViewModel.userInfo?.username ?? "username")")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.8))
+                    }
+                    Spacer()
+                    NavigationLink(
+                        destination: EditProfileView()
+                            .environmentObject(profileViewModel),
+                        isActive: $isShowingEditProfile
+                    ) {
+                        Image(systemName: "square.and.pencil.circle.fill")
+                            .foregroundColor(.white)
+                            .font(.system(size: 24))
                     }
                 }
                 .padding(.bottom, 10)
 
                 Divider()
                     .background(Color.white.opacity(0.4))
+                
                 HStack {
                     Spacer()
                     // Logout
                     Button(action: {
-                        authManager.logout()
-                        onLogout()
+                        showLogoutAlert = true // Hiển thị alert xác nhận
                     }) {
                         HStack {
                             Text("Đăng xuất")
                                 .font(.system(size: 16))
                             Image(systemName: "rectangle.portrait.and.arrow.forward.fill")
-                            
                         }
                         .font(.headline)
                         .foregroundColor(.white)
@@ -60,24 +72,21 @@ struct SideBar: View {
                     Spacer()
                 }
                 Spacer()
-                
-
-                
             }
             .padding()
         }
         .frame(maxWidth: 280, maxHeight: .infinity, alignment: .topLeading)
-    }
-}
-
-
-
-struct SideBar_Previews: PreviewProvider {
-    static var previews: some View {
-        SideBar {
-            print("Đăng xuất")
+        .alert(isPresented: $showLogoutAlert) {
+            Alert(
+                title: Text("Xác Nhận Đăng Xuất"),
+                message: Text("Bạn có chắc chắn muốn đăng xuất?"),
+                primaryButton: .destructive(Text("Đăng Xuất")) {
+                    print("🚪 User confirmed logout")
+                    authManager.logout()
+                    onLogout()
+                },
+                secondaryButton: .cancel(Text("Hủy"))
+            )
         }
-        .environmentObject(AuthManager())
-        .environmentObject(NavigationManager())
     }
 }

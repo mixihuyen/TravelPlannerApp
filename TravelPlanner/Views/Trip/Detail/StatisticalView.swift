@@ -98,10 +98,11 @@ struct StatisticalView: View {
                         .frame(maxWidth: .infinity)
                     }
                 } else if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.5)
-                        .padding()
+                    VStack {
+                        LottieView(animationName: "loading2")
+                            .frame(width: 50, height: 50)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle.fill")

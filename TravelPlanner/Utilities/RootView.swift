@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct RootView: View {
+    @State private var showAlert: Bool = false
+        @State private var alertTitle: String = ""
+        @State private var alertMessage: String = ""
     @StateObject private var navManager = NavigationManager()
     @StateObject private var authManager: AuthManager
     @StateObject private var viewModel = TripViewModel()
@@ -99,5 +102,37 @@ struct RootView: View {
         .onDisappear {
             print("🗑️ RootView biến mất")
         }
+        .alert(isPresented: $showAlert) {
+                    Alert(
+                        title: Text(alertTitle),
+                        message: Text(alertMessage),
+                        dismissButton: .default(Text("OK")) {
+                            if alertTitle == "Phiên Đăng Nhập Hết Hạn" {
+                                authManager.logout()
+                            }
+                        }
+                    )
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .showAuthErrorAlert)) { notification in
+                    // Chỉ hiển thị alert nếu chưa có alert nào đang hiển thị
+                    guard !showAlert else {
+                        print("⚠️ Alert already being shown, skipping new alert")
+                        return
+                    }
+                    
+                    if let userInfo = notification.userInfo,
+                       let title = userInfo["title"] as? String,
+                       let message = userInfo["message"] as? String {
+                        alertTitle = title
+                        alertMessage = message
+                        showAlert = true
+                        print("🔔 Displaying alert: \(title) - \(message)")
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .didLogout)) { _ in
+                    print("🚪 Received didLogout notification, navigating to signin")
+                    navManager.goToRoot()
+                }
+            
     }
 }

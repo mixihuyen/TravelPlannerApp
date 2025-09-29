@@ -80,25 +80,6 @@ struct ActivityView: View {
                         }
                     }
                     .frame(height: 140)
-                    if activityViewModel.isLoading {
-                        LottieView(animationName: "loading2")
-                            .frame(width: 100, height: 100)
-                            .padding(.top, 150)
-                    } else if activityViewModel.activities.isEmpty {
-                        VStack {
-                            Image("empty")
-                                .resizable()
-                                .frame(width: size == .compact ? 100 : 120, height: size == .compact ? 100 : 120)
-                                .foregroundColor(.gray)
-                            
-                            Text("Chưa có hoạt động nào")
-                                .foregroundColor(.gray)
-                                .font(.subheadline)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
-                        .padding(.top, 150)
-                    } else {
                         LazyVGrid(columns: columns, spacing: size == .compact ? 16 : 20) {
                             ForEach(activityViewModel.activities, id: \.id) { activity in
                                 ActivityCardView(
@@ -109,9 +90,32 @@ struct ActivityView: View {
                                 .frame(maxWidth: .infinity)
                             }
                         }
-                    }
                 }
                 .padding(.horizontal)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            if activityViewModel.isLoading {
+                ZStack {
+                     LottieView(animationName: "loading2")
+                         .frame(width: 50, height: 50)
+                }
+            } else if activityViewModel.activities.isEmpty {
+                VStack(spacing: 10) {
+                    Image("empty")
+                        .resizable()
+                        .frame(width: 100, height: 100)
+                        .foregroundColor(.gray)
+                    
+                    Text("Chưa có hoạt động nào!")
+                        .foregroundColor(.white)
+                        .font(.system(size: 16, weight: .semibold))
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Hãy bắt đầu lên kế hoạch để những chuyến đi của bạn thêm thuận lợi!")
+                        .foregroundColor(.gray)
+                        .font(.system(size: 13))
+                        .multilineTextAlignment(.center)
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }

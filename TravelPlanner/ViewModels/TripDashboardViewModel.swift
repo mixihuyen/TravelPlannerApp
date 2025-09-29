@@ -13,7 +13,7 @@ class TripDashboardViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let networkMonitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "network.monitor")
-    private let networkManager = NetworkManager()
+    private let networkManager = NetworkManager.shared
     private let tripId: Int
 
     init(tripId: Int) {

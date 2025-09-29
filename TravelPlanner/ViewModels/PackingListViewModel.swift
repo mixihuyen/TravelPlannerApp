@@ -4,11 +4,6 @@ import SwiftUI
 import CoreData
 import Network
 
-struct CachedPackingList: Codable {
-    let timestamp: Date
-    let data: PackingList
-}
-
 class PackingListViewModel: ObservableObject {
     @Published var packingList: PackingList = PackingList(sharedItems: [], personalItems: [])
     @Published var participants: [Participant] = []
@@ -19,7 +14,7 @@ class PackingListViewModel: ObservableObject {
     @Published var showToast: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
-    private let networkManager = NetworkManager()
+    private let networkManager = NetworkManager.shared
     private let participantViewModel: ParticipantViewModel
     private let tripId: Int
     private let networkMonitor = NWPathMonitor()

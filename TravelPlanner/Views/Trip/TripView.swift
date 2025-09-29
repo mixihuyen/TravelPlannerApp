@@ -5,6 +5,7 @@ struct TripView: View {
     @Environment(\.horizontalSizeClass) var size
     @EnvironmentObject var navManager: NavigationManager
     @EnvironmentObject var navCoor: NavigationCoordinator
+    @State private var shouldShowEmptyState: Bool = false
     
     var columns: [GridItem] {
         if size == .compact {
@@ -20,7 +21,9 @@ struct TripView: View {
                 // MARK: Màu nền
                 Color.background
                     .ignoresSafeArea()
+                
                 VStack {
+                    // MARK: Header
                     ZStack(alignment: .center) {
                         Rectangle()
                             .fill(Color.background2)
@@ -45,50 +48,26 @@ struct TripView: View {
                     .frame(height: 60)
                     .frame(maxWidth: .infinity)
                     
+                    // MARK: Content
                     ZStack {
-                        if viewModel.trips.isEmpty && !viewModel.isLoading {
-                            VStack(spacing: 10) {
-                                Image("empty")
-                                    .resizable()
-                                    .frame(width: 150, height: 150)
-                                    .foregroundColor(.gray)
-                                
-                                Text("Không có chuyến đi nào!")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .multilineTextAlignment(.center)
-                                
-                                Text("Hãy bắt đầu lên kế hoạch để những chuyến đi của bạn thêm thuận lợi!")
-                                    .foregroundColor(.gray)
-                                    .font(.system(size: 13))
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
+                        if !viewModel.trips.isEmpty && !viewModel.isLoading{
                             CustomPullToRefresh(threshold: 120, holdDuration: 0.3, content: {
                                 VStack {
-                                    if viewModel.isLoading && !viewModel.isRefreshing {
-                                        LottieView(animationName: "loading2")
-                                            .frame(width: 100, height: 100)
-                                            .padding(.top, 250)
-                                    } else {
-                                        LazyVGrid(columns: columns, spacing: 50) {
-                                            ForEach(viewModel.trips) { trip in
-                                                Button {
-                                                    print("Trip ID: \(trip.id)")
-                                                    guard trip.id > 0 else {
-                                                        viewModel.showToast(message: "ID chuyến đi không hợp lệ", type: .error)
-                                                        return
-                                                    }
-                                                    navManager.path.append(Route.tabBarView(tripId: trip.id))
-                                                } label: {
-                                                    TripCardView(tripId: trip.id)
-                                                        .frame(maxWidth: .infinity)
+                                    LazyVGrid(columns: columns, spacing: 50) {
+                                        ForEach(viewModel.trips) { trip in
+                                            Button {
+                                                print("Trip ID: \(trip.id)")
+                                                guard trip.id > 0 else {
+                                                    viewModel.showToast(message: "ID chuyến đi không hợp lệ", type: .error)
+                                                    return
                                                 }
-                                                .buttonStyle(PlainButtonStyle())
-                                                .contentShape(Rectangle())
-                                                
+                                                navManager.path.append(Route.tabBarView(tripId: trip.id))
+                                            } label: {
+                                                TripCardView(tripId: trip.id)
+                                                    .frame(maxWidth: .infinity)
                                             }
+                                            .buttonStyle(PlainButtonStyle())
+                                            .contentShape(Rectangle())
                                         }
                                     }
                                     Spacer()
@@ -102,15 +81,50 @@ struct TripView: View {
                                 viewModel.refreshTrips()
                             })
                         }
+                        // MARK: Loading Overlay
+                        if viewModel.isLoading  {
+                            VStack {
+                                LottieView(animationName: "loading2")
+                                    .frame(width: 50, height: 50)
+                            }
+                        }
+                        if shouldShowEmptyState && viewModel.trips.isEmpty && !viewModel.isLoading {
+                            VStack(spacing: 10) {
+                                Image("empty")
+                                    .resizable()
+                                    .frame(width: 100, height: 100)
+                                    .foregroundColor(.gray)
+                                
+                                Text("Không có chuyến đi nào!")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .multilineTextAlignment(.center)
+                                
+                                Text("Hãy bắt đầu lên kế hoạch để những chuyến đi của bạn thêm thuận lợi!")
+                                    .foregroundColor(.gray)
+                                    .font(.system(size: 13))
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
                 }
+                
+                
             }
             .navigationBarBackButtonHidden(true)
         }
         .environmentObject(viewModel)
         .onAppear {
-            viewModel.fetchTrips()
-        }
+                    if viewModel.trips.isEmpty && !viewModel.isLoading {
+                        print("🚀 TripView onAppear: Gọi fetchTrips")
+                        viewModel.fetchTrips()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            self.shouldShowEmptyState = true
+                        }
+                    }
+                }
         .onChange(of: navCoor.shouldRefreshTrips) { shouldRefresh in
             if shouldRefresh {
                 viewModel.fetchTrips(forceRefresh: true) {
@@ -120,7 +134,9 @@ struct TripView: View {
         }
         .overlay(
             Group {
-                if viewModel.showToast, let message = viewModel.toastMessage, let type = viewModel.toastType {
+                if viewModel.showToast,
+                   let message = viewModel.toastMessage,
+                   let type = viewModel.toastType {
                     ToastView(message: message, type: type)
                 }
             },

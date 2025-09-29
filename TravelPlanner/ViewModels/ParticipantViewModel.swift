@@ -13,7 +13,7 @@ class ParticipantViewModel: ObservableObject {
     @Published var toastType: ToastType?
     
     private var cancellables = Set<AnyCancellable>()
-    private let networkManager: NetworkManager
+    private let networkManager = NetworkManager.shared
     private let cacheKeyPrefix = "participants_"
     private let cacheTTL: TimeInterval = 300 // 5 phút
     static var ramCache: [Int: (participants: [Participant], timestamp: Date)] = [:]
@@ -28,9 +28,8 @@ class ParticipantViewModel: ObservableObject {
         UserDefaults.standard.integer(forKey: "userId")
     }
     
-    init(networkManager: NetworkManager = NetworkManager()) {
-        self.networkManager = networkManager
-        setupNetworkMonitoring()
+    init() {
+       
         NotificationCenter.default.addObserver(
                 self,
                 selector: #selector(handleLogout),

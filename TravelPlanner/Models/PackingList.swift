@@ -9,3 +9,7 @@ struct PackingList: Codable, Equatable {
                    lhs.personalItems == rhs.personalItems
         }
 }
+struct CachedPackingList: Codable {
+    let timestamp: Date
+    let data: [PackingItem]
+}

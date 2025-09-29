@@ -15,6 +15,33 @@
         <attribute name="tripId" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="updatedAt" optional="YES" attributeType="String"/>
     </entity>
+    <entity name="AvatarEntity" representedClassName="AvatarEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="altText" optional="YES" attributeType="String"/>
+        <attribute name="cachedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="String"/>
+        <attribute name="createdByUserId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="imageData" attributeType="Binary"/>
+        <attribute name="publicId" attributeType="String"/>
+        <attribute name="status" attributeType="String"/>
+        <attribute name="updatedAt" optional="YES" attributeType="String"/>
+        <attribute name="url" attributeType="String"/>
+    </entity>
+    <entity name="ImageEntity" representedClassName="ImageEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="altText" optional="YES" attributeType="String"/>
+        <attribute name="cachedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="String"/>
+        <attribute name="createdByUser" optional="YES" attributeType="Binary"/>
+        <attribute name="createdByUserId" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="imageData" optional="YES" attributeType="Binary"/>
+        <attribute name="imagetableId" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="imagetableType" optional="YES" attributeType="String"/>
+        <attribute name="publicId" optional="YES" attributeType="String"/>
+        <attribute name="status" optional="YES" attributeType="String"/>
+        <attribute name="updatedAt" optional="YES" attributeType="String"/>
+        <attribute name="url" optional="YES" attributeType="String"/>
+    </entity>
     <entity name="PackingItemEntity" representedClassName=".PackingItemEntity" syncable="YES" codeGenerationType="class">
         <attribute name="assignedToUserId" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="createdByUserId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
@@ -50,5 +77,19 @@
         <attribute name="status" optional="YES" attributeType="String" defaultValueString="planned"/>
         <attribute name="tripParticipants" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformerName"/>
         <attribute name="updatedAt" optional="YES" attributeType="String"/>
+    </entity>
+    <entity name="UserImageEntity" representedClassName="UserImageEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="altText" optional="YES" attributeType="String"/>
+        <attribute name="cachedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="YES" attributeType="String"/>
+        <attribute name="createdByUserId" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="imageData" optional="YES" attributeType="Binary"/>
+        <attribute name="imagetableId" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="imagetableType" optional="YES" attributeType="String"/>
+        <attribute name="publicId" optional="YES" attributeType="String"/>
+        <attribute name="status" optional="YES" attributeType="String"/>
+        <attribute name="updatedAt" optional="YES" attributeType="String"/>
+        <attribute name="url" optional="YES" attributeType="String"/>
     </entity>
 </model>

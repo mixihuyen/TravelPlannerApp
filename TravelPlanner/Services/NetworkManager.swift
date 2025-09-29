@@ -3,24 +3,26 @@ import Combine
 import Network
 
 class NetworkManager {
+    static let shared = NetworkManager()
     private let session: URLSession
     private let monitor: NWPathMonitor
-    private let queue = DispatchQueue(label: "NetworkMonitor")
+    private let queue = DispatchQueue.global(qos: .background)
     @Published private(set) var isNetworkAvailable: Bool = true
     private var cancellables = Set<AnyCancellable>()
+    private var hasAttemptedTokenRefresh = false
 
-    init(timeoutInterval: TimeInterval = APIConfig.timeoutInterval) {
+    private init(timeoutInterval: TimeInterval = APIConfig.timeoutInterval) {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = max(timeoutInterval, 30.0) 
+        config.timeoutIntervalForRequest = max(timeoutInterval, 30.0)
         config.timeoutIntervalForResource = 60.0
         config.waitsForConnectivity = true
         self.session = URLSession(configuration: config)
         
-        // Khởi tạo NWPathMonitor để theo dõi trạng thái mạng
         self.monitor = NWPathMonitor()
         monitor.pathUpdateHandler = { [weak self] path in
             let isConnected = path.status == .satisfied
             DispatchQueue.main.async {
+                print("🌐 NWPathMonitor update - Status: \(path.status), isConnected: \(isConnected), interface: \(path.availableInterfaces)")
                 if self?.isNetworkAvailable != isConnected {
                     self?.isNetworkAvailable = isConnected
                     print("🌐 Network status changed: \(isConnected ? "Connected" : "Disconnected")")
@@ -28,9 +30,35 @@ class NetworkManager {
             }
         }
         monitor.start(queue: queue)
+        
+        checkInitialNetworkStatus()
+    }
+    
+    private func checkInitialNetworkStatus() {
+        let initialMonitor = NWPathMonitor()
+        let initialQueue = DispatchQueue.global(qos: .background)
+        initialMonitor.pathUpdateHandler = { [weak self] path in
+            let isConnected = path.status == .satisfied
+            DispatchQueue.main.async {
+                print("🌐 Initial network status: \(isConnected ? "Connected" : "Disconnected")")
+                self?.isNetworkAvailable = isConnected
+                initialMonitor.cancel()
+            }
+        }
+        initialMonitor.start(queue: initialQueue)
+    }
+    
+    static func isConnected(timeout: Double = 2.0) -> Bool {
+        return NetworkManager.shared.isNetworkAvailable
+    }
+    
+    deinit {
+        monitor.cancel()
+        print("🗑️ NetworkManager deallocated")
     }
 
     func performRequest<T: Decodable>(_ request: URLRequest, decodeTo type: T.Type) -> AnyPublisher<T, Error> {
+            print("🛠️ Using updated NetworkManager with refreshToken for HTTP 500")
             guard isNetworkAvailable else {
                 print("❌ No network connection, request aborted: \(request.url?.absoluteString ?? "unknown URL")")
                 return Fail(error: URLError(.notConnectedToInternet)).eraseToAnyPublisher()
@@ -71,24 +99,38 @@ class NetworkManager {
                     decoder.dateDecodingStrategy = .iso8601
                     do {
                         let decodedResponse = try decoder.decode(T.self, from: result.data)
-                        if (400..<600).contains(httpResponse.statusCode) {
-                            print("🌐 HTTP Status Code \(httpResponse.statusCode), but decoded response: \(String(data: result.data, encoding: .utf8) ?? "Unable to convert data")")
-                            return decodedResponse
-                        }
+                        print("✅ Successfully decoded response: \(String(data: result.data, encoding: .utf8) ?? "Unable to convert data")")
                         return decodedResponse
                     } catch {
                         print("❌ Decoding error: \(error.localizedDescription)")
                         throw URLError(.cannotDecodeContentData, userInfo: ["HTTPStatusCode": httpResponse.statusCode, "UnderlyingError": error])
                     }
                 }
-                .catch { error -> AnyPublisher<T, Error> in
+                .catch { [weak self] error -> AnyPublisher<T, Error> in
+                    guard let self = self else {
+                        return Fail(error: URLError(.badServerResponse)).eraseToAnyPublisher()
+                    }
+                    
                     if let urlError = error as? URLError,
-                       urlError.code == .badServerResponse,
+                       (urlError.code == .badServerResponse || urlError.code == .cannotDecodeContentData),
                        let statusCode = urlError.userInfo["HTTPStatusCode"] as? Int,
-                       statusCode == 500,
-                       urlError.userInfo["Retry"] as? String == "NeedsTokenRefresh" {
-                        print("🔄 Attempting to refresh token due to 500 error")
-                        let authService = AuthService(networkManager: self)
+                       (statusCode == 500 || statusCode == 401 || statusCode == 403) {
+                        // Chỉ thử refresh token nếu chưa thử trước đó
+                        guard !self.hasAttemptedTokenRefresh else {
+                            print("🔄 Token refresh already attempted, skipping")
+                            DispatchQueue.main.async {
+                                print("🔔 Sending showAuthErrorAlert notification for repeated refresh attempt")
+                                NotificationCenter.default.post(name: .showAuthErrorAlert, object: nil, userInfo: [
+                                    "title": "Phiên Đăng Nhập Hết Hạn",
+                                    "message": "Phiên đăng nhập của bạn không hợp lệ. Vui lòng đăng nhập lại."
+                                ])
+                            }
+                            return Fail(error: NSError(domain: "", code: statusCode, userInfo: [NSLocalizedDescriptionKey: "Phiên đăng nhập không hợp lệ do lỗi máy chủ."])).eraseToAnyPublisher()
+                        }
+                        
+                        self.hasAttemptedTokenRefresh = true
+                        print("🔄 Attempting to refresh token due to HTTP \(statusCode) or decoding error")
+                        let authService = AuthService()
                         return authService.refreshToken()
                             .flatMap { _ -> AnyPublisher<T, Error> in
                                 var updatedRequest = request
@@ -100,12 +142,30 @@ class NetworkManager {
                             }
                             .catch { refreshError -> AnyPublisher<T, Error> in
                                 print("❌ Failed to refresh token: \(refreshError.localizedDescription)")
-                                return Fail(error: NSError(domain: "", code: URLError.userAuthenticationRequired.rawValue, userInfo: [NSLocalizedDescriptionKey: "Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!"])).eraseToAnyPublisher()
+                                DispatchQueue.main.async {
+                                    print("🔔 Sending showAuthErrorAlert notification for failed token refresh")
+                                    NotificationCenter.default.post(name: .showAuthErrorAlert, object: nil, userInfo: [
+                                        "title": "Phiên Đăng Nhập Hết Hạn",
+                                        "message": "Phiên đăng nhập của bạn không hợp lệ. Vui lòng đăng nhập lại."
+                                    ])
+                                }
+                                return Fail(error: refreshError).eraseToAnyPublisher()
                             }
+                            .handleEvents(receiveCompletion: { [weak self] _ in
+                                self?.hasAttemptedTokenRefresh = false // Reset sau khi hoàn thành
+                                print("🔄 Reset hasAttemptedTokenRefresh")
+                            })
                             .eraseToAnyPublisher()
                     }
                     
                     print("❌ Request error: \(error.localizedDescription)")
+                    DispatchQueue.main.async {
+                        print("🔔 Sending showAuthErrorAlert notification for general error")
+                        NotificationCenter.default.post(name: .showAuthErrorAlert, object: nil, userInfo: [
+                            "title": "Lỗi Kết Nối",
+                            "message": "Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại sau."
+                        ])
+                    }
                     return Fail(error: error).eraseToAnyPublisher()
                 }
                 .receive(on: DispatchQueue.main)
@@ -113,6 +173,7 @@ class NetworkManager {
         }
 
     static func createRequest(url: URL, method: String, token: String, body: Data? = nil) -> URLRequest {
+        
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -125,33 +186,12 @@ class NetworkManager {
         }
         return request
     }
-
-    static func isConnected(timeout: Double = 10.0) -> Bool {
-        let monitor = NWPathMonitor()
-        var isConnected = false
-        let semaphore = DispatchSemaphore(value: 0)
-        
-        monitor.pathUpdateHandler = { path in
-            isConnected = path.status == .satisfied
-            semaphore.signal()
-        }
-        monitor.start(queue: DispatchQueue(label: "NetworkMonitorSync.\(UUID().uuidString)")) // UUID để tránh xung đột queue
-        
-        _ = semaphore.wait(timeout: .now() + timeout)
-        monitor.cancel()
-        
-        print("🌐 Network check: \(isConnected ? "Connected" : "Disconnected")")
-        return isConnected
-    }
-
-    deinit {
-        monitor.cancel()
-        cancellables.removeAll()
-        print("🗑️ NetworkManager deallocated")
-    }
 }
 
-// Struct để xử lý phản hồi rỗng
 struct EmptyResponse: Decodable {
     init() {}
+}
+
+extension NSNotification.Name {
+    static let showAuthErrorAlert = Notification.Name("showAuthErrorAlert")
 }
